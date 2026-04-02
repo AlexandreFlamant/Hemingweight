@@ -91,7 +91,14 @@ function App() {
 
   // Refit terminal when chat panel toggles
   useEffect(() => {
-    setTimeout(() => fitAddonRef.current?.fit(), 300);
+    // Fire after the CSS transition (250ms) finishes, with a small buffer
+    const t1 = setTimeout(() => fitAddonRef.current?.fit(), 300);
+    // Also force a full refresh to fix xterm canvas going black after collapse
+    const t2 = setTimeout(() => {
+      fitAddonRef.current?.fit();
+      termRef.current?.refresh(0, termRef.current.rows - 1);
+    }, 350);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [chatOpen]);
 
   const connectToProject = useCallback((project: Project) => {
@@ -322,7 +329,7 @@ function App() {
               <img src="/logo.png" alt="Clawable" style={{ width: 56, height: 56 }} />
               <div style={{ fontSize: 16, fontWeight: 600, color: '#e4e4ef' }}>Clawable</div>
               <div style={{ fontSize: 13, color: '#71717a', textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
-                Think of something you want to build with Claude Code
+                Think of something you want to build
               </div>
             </div>
           )}
