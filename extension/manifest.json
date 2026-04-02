@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Clawable",
   "description": "Claude Code in the browser — chat with Claude and preview your project side by side",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "icons": {
     "48": "icon48.png",
     "128": "icon128.png"

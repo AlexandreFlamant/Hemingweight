@@ -184,7 +184,7 @@ function App() {
           {/* Logo + wordmark — hide in embed mode since Chrome shows its own header */}
           {!isEmbed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <img src="/logo.svg" alt="Clawable" style={{ width: 28, height: 28 }} />
+              <img src="/logo.png" alt="Clawable" style={{ width: 28, height: 28 }} />
               <span style={{ fontSize: 15, fontWeight: 700, color: '#e4e4ef', whiteSpace: 'nowrap' }}>Clawable</span>
             </div>
           )}
@@ -319,7 +319,7 @@ function App() {
               alignItems: 'center', justifyContent: 'center',
               gap: 12, zIndex: 10, background: '#18181b',
             }}>
-              <img src="/logo.svg" alt="Clawable" style={{ width: 56, height: 56 }} />
+              <img src="/logo.png" alt="Clawable" style={{ width: 56, height: 56 }} />
               <div style={{ fontSize: 16, fontWeight: 600, color: '#e4e4ef' }}>Clawable</div>
               <div style={{ fontSize: 13, color: '#71717a', textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
                 Think of something you want to build with Claude Code
@@ -376,7 +376,7 @@ function App() {
               }}
               title="Open chat"
             >
-              <img src="/logo.svg" alt="Clawable" style={{ width: 24, height: 24 }} />
+              <img src="/logo.png" alt="Clawable" style={{ width: 24, height: 24 }} />
             </button>
           )}
 
