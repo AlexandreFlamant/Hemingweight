@@ -1,0 +1,21 @@
+{
+  "name": "clawable",
+  "version": "1.0.0",
+  "description": "Claude Code in the browser — Lovable-style UI",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "dev:client": "cd client && npx vite",
+    "build": "cd client && npm run build",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "node-pty": "^1.1.0",
+    "ws": "^8.20.0"
+  }
+}

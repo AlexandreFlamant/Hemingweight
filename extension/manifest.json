@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Clawable",
+  "description": "Claude Code in the browser — chat with Claude and preview your project side by side",
+  "version": "1.1.1",
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "permissions": ["sidePanel"],
+  "action": {
+    "default_title": "Open Clawable",
+    "default_icon": {
+      "48": "icon48.png",
+      "128": "icon128.png"
+    },
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
