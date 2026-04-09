@@ -27,7 +27,16 @@ body {
   cursor: pointer;
   font-family: inherit;
 }
-.btn:hover {
+.btn:hover:not(:disabled) {
   background: #27272a;
   color: #e4e4ef;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.status {
+  padding: 4px 12px 8px;
+  font-size: 11px;
+  color: #a1a1aa;
 }

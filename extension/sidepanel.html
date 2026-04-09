@@ -6,11 +6,22 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; overflow: hidden; background: #18181b; }
-    iframe { width: 100%; height: 100%; border: none; }
+    iframe { width: 100%; height: 100%; border: none; display: none; }
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #a1a1aa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+    }
+    .loading.error { color: #f87171; padding: 20px; text-align: center; }
   </style>
 </head>
 <body>
-  <iframe id="app" src="http://localhost:3456?embed=1" allow="clipboard-read; clipboard-write"></iframe>
+  <div id="loading" class="loading">Starting server...</div>
+  <iframe id="app" allow="clipboard-read; clipboard-write"></iframe>
   <script src="sidepanel.js"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
+import CodeViewer from './CodeViewer';
 
 interface Project {
   name: string;
@@ -20,6 +21,10 @@ function App() {
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewKey, setPreviewKey] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewRunning, setPreviewRunning] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const [rightPanel, setRightPanel] = useState<'preview' | 'code'>('preview');
 
   const terminalRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -102,6 +107,13 @@ function App() {
   }, [chatOpen]);
 
   const connectToProject = useCallback((project: Project) => {
+    // Always clear preview state when switching projects
+    if (selectedProject && selectedProject.path !== project.path) {
+      fetch(`/api/preview/stop-all`, { method: 'POST' }).catch(() => {});
+      setPreviewRunning(false);
+      setPreviewUrl('');
+    }
+
     setSelectedProject(project);
     setShowProjectPicker(false);
     setStatus('connecting');
@@ -116,8 +128,8 @@ function App() {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = import.meta.env.DEV ? 'localhost:3456' : window.location.host;
-    const ws = new WebSocket(`${protocol}//${wsHost}`);
+    const wsHost = window.location.host;
+    const ws = new WebSocket(`${protocol}//${wsHost}/ws`);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -147,12 +159,54 @@ function App() {
       }
     };
 
-    ws.onclose = () => { if (status === 'running') setStatus('exited'); };
-    ws.onerror = () => {
+    ws.onclose = () => {
+      setStatus(prev => prev === 'running' ? 'exited' : prev);
+    };
+    ws.onerror = (event) => {
+      console.error('WebSocket error:', event);
       setStatus('idle');
       term?.writeln('\r\n\x1b[31m  Connection error.\x1b[0m');
     };
-  }, [status]);
+  }, [selectedProject, previewRunning]);
+
+  const launchPreview = useCallback(async () => {
+    if (!selectedProject) return;
+    setPreviewLoading(true);
+    setPreviewError('');
+    try {
+      const resp = await fetch(`/api/preview/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPath: selectedProject.path }),
+      });
+      const data = await resp.json();
+      if (data.error) {
+        setPreviewError(data.error);
+      } else if (data.ready && data.url) {
+        setPreviewUrl(data.url);
+        setPreviewRunning(true);
+        setRightPanel('preview');
+        setPreviewKey(k => k + 1);
+      }
+    } catch (err) {
+      setPreviewError(`Failed to start preview: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [selectedProject]);
+
+  const stopPreview = useCallback(async () => {
+    if (!selectedProject) return;
+    setPreviewRunning(false);
+    setPreviewUrl('');
+    try {
+      await fetch(`/api/preview/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPath: selectedProject.path }),
+      });
+    } catch {}
+  }, [selectedProject]);
 
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(projectSearch.toLowerCase())
@@ -239,6 +293,8 @@ function App() {
               }}>
                 <input
                   type="text"
+                  id="project-search"
+                  name="project-search"
                   placeholder="Search projects..."
                   value={projectSearch}
                   onChange={e => setProjectSearch(e.target.value)}
@@ -416,45 +472,85 @@ function App() {
             padding: 2,
             gap: 2,
           }}>
-            <button style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none',
-              background: '#e07a4b', color: '#fff',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            }}>
+            <button
+              onClick={() => setRightPanel('preview')}
+              style={{
+                padding: '6px 16px', borderRadius: 6, border: 'none',
+                background: rightPanel === 'preview' ? '#e07a4b' : 'transparent',
+                color: rightPanel === 'preview' ? '#fff' : '#71717a',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
               Preview
             </button>
-            <button style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none',
-              background: 'transparent', color: '#71717a',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer',
-            }}>
+            <button
+              onClick={() => setRightPanel('code')}
+              style={{
+                padding: '6px 16px', borderRadius: 6, border: 'none',
+                background: rightPanel === 'code' ? '#e07a4b' : 'transparent',
+                color: rightPanel === 'code' ? '#fff' : '#71717a',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
               Code
             </button>
           </div>
 
-          {/* URL bar */}
+          {/* Status bar */}
           <div style={{
             flex: 1, display: 'flex', alignItems: 'center',
             background: '#27272a', borderRadius: 8,
             padding: '0 12px', height: 34, gap: 8,
           }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.4 }}>
-              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
-              <path d="M2 8h12M8 2a10 10 0 0 1 3 6 10 10 0 0 1-3 6 10 10 0 0 1-3-6 10 10 0 0 1 3-6z" stroke="currentColor" strokeWidth="1.2" />
-            </svg>
-            <input
-              type="text"
-              value={previewUrl}
-              onChange={e => setPreviewUrl(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') setPreviewKey(k => k + 1); }}
-              placeholder="http://localhost:3000"
-              style={{
-                flex: 1, background: 'transparent', border: 'none',
-                color: '#a1a1aa', fontSize: 13, outline: 'none',
-                fontFamily: "'SF Mono', Menlo, monospace",
-              }}
-            />
+            {previewRunning ? (
+              <>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: '#a1a1aa', fontFamily: "'SF Mono', Menlo, monospace" }}>
+                  {selectedProject?.name || 'Preview'}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: 13, color: '#555570' }}>
+                {selectedProject ? 'Ready to preview' : 'Select a project'}
+              </span>
+            )}
           </div>
+
+          {/* Launch / Stop Preview */}
+          <button
+            onClick={previewRunning ? stopPreview : launchPreview}
+            disabled={!selectedProject || previewLoading}
+            style={{
+              height: 34, borderRadius: 8, padding: '0 14px',
+              background: previewRunning ? '#dc2626' : '#e07a4b',
+              border: 'none',
+              color: '#fff',
+              fontSize: 12, fontWeight: 600,
+              cursor: selectedProject && !previewLoading ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', gap: 6,
+              opacity: selectedProject ? 1 : 0.4,
+              transition: 'background 0.15s, opacity 0.15s',
+              flexShrink: 0,
+            }}
+            title={previewRunning ? 'Stop dev server' : 'Start dev server and preview'}
+          >
+            {previewLoading ? (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                <path d="M8 2a6 6 0 1 0 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            ) : previewRunning ? (
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path d="M4 2l10 6-10 6V2z" fill="currentColor" />
+              </svg>
+            )}
+            {previewLoading ? 'Starting...' : previewRunning ? 'Stop' : 'Run Preview'}
+          </button>
 
           {/* Refresh */}
           <button
@@ -474,7 +570,7 @@ function App() {
 
           {/* Open in new tab */}
           <button
-            onClick={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}
+            onClick={() => { if (previewRunning) window.open('/preview/', '_blank'); }}
             style={{
               width: 34, height: 34, borderRadius: 8,
               background: '#27272a', border: 'none',
@@ -489,9 +585,11 @@ function App() {
           </button>
         </div>
 
-        {/* Preview iframe */}
+        {/* Content area — Preview or Code */}
         <div style={{ flex: 1, background: '#09090b', position: 'relative' }}>
-          {previewUrl ? (
+          {rightPanel === 'code' && selectedProject ? (
+            <CodeViewer projectPath={selectedProject.path} />
+          ) : previewUrl ? (
             <iframe
               key={previewKey}
               src={previewUrl}
@@ -500,14 +598,13 @@ function App() {
                 border: 'none', background: '#fff',
               }}
               title="Preview"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
             />
           ) : (
             <div style={{
               position: 'absolute', inset: 0,
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              gap: 12,
+              gap: 16,
             }}>
               <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ opacity: 0.15 }}>
                 <rect x="4" y="8" width="40" height="28" rx="4" stroke="white" strokeWidth="2" />
@@ -518,12 +615,52 @@ function App() {
                 <path d="M16 40h16" stroke="white" strokeWidth="2" strokeLinecap="round" />
                 <path d="M24 36v4" stroke="white" strokeWidth="2" />
               </svg>
-              <div style={{ fontSize: 14, color: '#3f3f46' }}>
-                Enter a URL above to preview your project
-              </div>
-              <div style={{ fontSize: 12, color: '#27272a' }}>
-                e.g. http://localhost:3000
-              </div>
+              {selectedProject ? (
+                <>
+                  <button
+                    onClick={launchPreview}
+                    disabled={previewLoading}
+                    style={{
+                      padding: '12px 28px', borderRadius: 10, border: 'none',
+                      background: '#e07a4b', color: '#fff',
+                      fontSize: 14, fontWeight: 600, cursor: previewLoading ? 'wait' : 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      transition: 'transform 0.1s, box-shadow 0.15s',
+                      boxShadow: '0 0 20px rgba(224, 122, 75, 0.2)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = '0 0 30px rgba(224, 122, 75, 0.35)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(224, 122, 75, 0.2)'; }}
+                  >
+                    {previewLoading ? (
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                        <path d="M8 2a6 6 0 1 0 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 2l10 6-10 6V2z" fill="currentColor" />
+                      </svg>
+                    )}
+                    {previewLoading ? 'Starting server...' : 'Run Preview'}
+                  </button>
+                  <div style={{ fontSize: 12, color: '#3f3f46' }}>
+                    Launches the dev server and loads the preview
+                  </div>
+                  {previewError && (
+                    <div style={{ fontSize: 12, color: '#f87171', maxWidth: 320, textAlign: 'center', lineHeight: 1.5 }}>
+                      {previewError}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 14, color: '#3f3f46' }}>
+                    Select a project to get started
+                  </div>
+                  <div style={{ fontSize: 12, color: '#27272a' }}>
+                    Click "Run Preview" after selecting a project
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -1,0 +1,7 @@
+{
+  "name": "com.clawable.server",
+  "description": "Clawable — auto-start local server for Claude Code in the browser",
+  "path": "CLAWABLE_HOST_SH_PATH",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://omimchkgcgnemckobiolkfioopdckiah/"]
+}

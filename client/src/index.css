@@ -51,6 +51,32 @@ body {
   background: var(--text-muted);
 }
 
+/* Spinner animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* highlight.js theme — dark, matching Clawable palette */
+.hljs-keyword, .hljs-built_in { color: #c792ea; }
+.hljs-type, .hljs-class .hljs-title { color: #ffcb6b; }
+.hljs-string, .hljs-template-variable { color: #c3e88d; }
+.hljs-number, .hljs-literal { color: #f78c6c; }
+.hljs-comment { color: #555570; font-style: italic; }
+.hljs-function .hljs-title, .hljs-title.function_ { color: #82aaff; }
+.hljs-variable, .hljs-params { color: #e4e4ef; }
+.hljs-attr, .hljs-attribute { color: #ffcb6b; }
+.hljs-tag { color: #f07178; }
+.hljs-name { color: #f07178; }
+.hljs-selector-class, .hljs-selector-id { color: #82aaff; }
+.hljs-selector-tag { color: #f07178; }
+.hljs-property { color: #e07a4b; }
+.hljs-regexp { color: #89ddff; }
+.hljs-meta { color: #89ddff; }
+.hljs-punctuation { color: #89ddff; }
+.hljs-operator { color: #89ddff; }
+.hljs-title.class_ { color: #ffcb6b; }
+.hljs-subst { color: #e4e4ef; }
+
 /* xterm overrides */
 .xterm {
   padding: 12px;

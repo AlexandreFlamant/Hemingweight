@@ -1,7 +1,8 @@
 const express = require('express');
 const http = require('http');
+const httpProxy = require('http-proxy');
 const WebSocket = require('ws');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -16,13 +17,25 @@ process.on('unhandledRejection', (err) => {
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ noServer: true });
+const fileWss = new WebSocket.Server({ noServer: true });
 
 // Serve static frontend in production
 app.use(express.static(path.join(__dirname, 'client/dist')));
 app.use(express.json());
 
 const PTY_BRIDGE = path.join(__dirname, 'pty-bridge.py');
+
+// Ensure common binary paths are available (native host may launch with a minimal PATH)
+const FULL_PATH = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin']
+  .concat((process.env.PATH || '').split(':'))
+  .filter((v, i, a) => v && a.indexOf(v) === i)
+  .join(':');
+
+// Health check for extension auto-launch
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // API to list recent projects (directories)
 app.get('/api/projects', (req, res) => {
@@ -42,8 +55,359 @@ app.get('/api/projects', (req, res) => {
   }
 });
 
+// ── File tree & read endpoints ──────────────────────────────────────────────
+
+const IGNORED_DIRS = new Set([
+  'node_modules', '.git', '.next', '.nuxt', '.svelte-kit', 'dist', 'build',
+  '.cache', '.turbo', '.vercel', '__pycache__', '.venv', 'venv', 'coverage',
+  '.DS_Store',
+]);
+const IGNORED_FILES = new Set(['.DS_Store', 'Thumbs.db']);
+
+function buildFileTree(dirPath, depth = 0, maxDepth = 6) {
+  if (depth > maxDepth) return [];
+  let entries;
+  try {
+    entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const results = [];
+  const sorted = entries
+    .filter(e => !IGNORED_DIRS.has(e.name) && !IGNORED_FILES.has(e.name) && !e.name.startsWith('.'))
+    .sort((a, b) => {
+      // Directories first, then alphabetical
+      if (a.isDirectory() && !b.isDirectory()) return -1;
+      if (!a.isDirectory() && b.isDirectory()) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+  for (const entry of sorted) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      results.push({
+        name: entry.name,
+        path: fullPath,
+        type: 'directory',
+        children: buildFileTree(fullPath, depth + 1, maxDepth),
+      });
+    } else {
+      results.push({
+        name: entry.name,
+        path: fullPath,
+        type: 'file',
+      });
+    }
+  }
+  return results;
+}
+
+app.get('/api/files/tree', (req, res) => {
+  const projectPath = req.query.path;
+  if (!projectPath) return res.status(400).json({ error: 'path required' });
+  // Security: ensure path is under home directory
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  res.json(buildFileTree(projectPath));
+});
+
+app.get('/api/files/read', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: 'path required' });
+  const home = os.homedir();
+  if (!path.resolve(filePath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  try {
+    const stat = fs.statSync(filePath);
+    // Don't read files larger than 1MB
+    if (stat.size > 1024 * 1024) {
+      return res.status(400).json({ error: 'File too large (>1MB)' });
+    }
+    const content = fs.readFileSync(filePath, 'utf-8');
+    res.json({ content, path: filePath });
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
 // Track active sessions
 const sessions = new Map();
+
+// ── Preview system ─────────────────────────────────────────────────────────
+// All preview traffic is proxied through /preview/ on the Clawable server.
+// Users never see or think about port numbers.
+
+const previewServers = new Map();  // keyed by project path
+const proxy = httpProxy.createProxyServer({ ws: true, changeOrigin: true });
+
+// Suppress proxy errors (e.g. dev server restarting)
+proxy.on('error', (err, req, res) => {
+  console.error('Proxy error:', err.message);
+  if (res.writeHead) {
+    res.writeHead(502, { 'Content-Type': 'text/html' });
+    res.end('<html><body style="background:#18181b;color:#71717a;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif"><div>Preview is loading...</div></body></html>');
+  }
+});
+
+function findFreePort(startPort) {
+  return new Promise((resolve) => {
+    const srv = require('net').createServer();
+    srv.listen(startPort, '127.0.0.1', () => {
+      const port = srv.address().port;
+      srv.close(() => resolve(port));
+    });
+    srv.on('error', () => resolve(findFreePort(startPort + 1)));
+  });
+}
+
+function detectDevSetup(projectPath) {
+  const pkgPath = path.join(projectPath, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      const scripts = pkg.scripts || {};
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+      if (deps['next']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 3000, portFlag: '--', portArgs: ['-p'] };
+      if (deps['vite'] || deps['@vitejs/plugin-react']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 5173, portFlag: '--', portArgs: ['--port'] };
+      if (deps['react-scripts']) return { cmd: 'npm', args: ['start'], defaultPort: 3000 };
+      if (deps['nuxt']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 3000, portFlag: '--', portArgs: ['--port'] };
+      if (deps['svelte'] || deps['@sveltejs/kit']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 5173, portFlag: '--', portArgs: ['--port'] };
+      if (deps['astro']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 4321, portFlag: '--', portArgs: ['--port'] };
+      if (scripts.dev) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 3000 };
+      if (scripts.start) return { cmd: 'npm', args: ['start'], defaultPort: 3000 };
+    } catch {}
+  }
+
+  if (fs.existsSync(path.join(projectPath, 'manage.py')))
+    return { cmd: 'python3', args: ['manage.py', 'runserver'], defaultPort: 8000 };
+  if (fs.existsSync(path.join(projectPath, 'app.py')))
+    return { cmd: 'python3', args: ['app.py'], defaultPort: 5000 };
+
+  // Static HTML sites — look for index.html in root or common subdirs
+  const staticCandidates = [
+    projectPath,
+    path.join(projectPath, 'site'),
+    path.join(projectPath, 'public'),
+    path.join(projectPath, 'dist'),
+    path.join(projectPath, 'build'),
+    path.join(projectPath, 'www'),
+  ];
+  for (const dir of staticCandidates) {
+    if (fs.existsSync(path.join(dir, 'index.html'))) {
+      return { type: 'static', staticDir: dir, defaultPort: 8080 };
+    }
+  }
+
+  return null;
+}
+
+function extractPort(text) {
+  const urlMatch = text.match(/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{4,5})/);
+  if (urlMatch) return parseInt(urlMatch[1]);
+  const portMatch = text.match(/\bport\s*[:\s]\s*(\d{4,5})\b/i);
+  if (portMatch) return parseInt(portMatch[1]);
+  return null;
+}
+
+function killAllPreviews() {
+  for (const [p, entry] of previewServers) {
+    if (entry.isStatic && entry.server) {
+      try { entry.server.close(); } catch {}
+    } else if (entry.proc) {
+      try { process.kill(-entry.proc.pid, 'SIGTERM'); } catch {}
+    }
+    previewServers.delete(p);
+  }
+}
+
+// Check if node_modules exists, auto-install if missing
+function ensureDepsInstalled(projectPath) {
+  const pkgPath = path.join(projectPath, 'package.json');
+  const nmPath = path.join(projectPath, 'node_modules');
+  if (fs.existsSync(pkgPath) && !fs.existsSync(nmPath)) {
+    console.log(`Installing dependencies for ${projectPath}...`);
+    try {
+      execSync('npm install', {
+        cwd: projectPath,
+        stdio: 'pipe',
+        env: { ...process.env, PATH: FULL_PATH, HOME: os.homedir() },
+        timeout: 120000,
+      });
+      console.log(`Dependencies installed for ${projectPath}`);
+      return { installed: true };
+    } catch (err) {
+      console.error('npm install failed:', err.message);
+      return { installed: false, error: 'Failed to install dependencies: ' + err.message };
+    }
+  }
+  return { installed: true };
+}
+
+// Preview status — client uses the port to load iframe directly
+app.get('/api/preview/port', (req, res) => {
+  const entry = [...previewServers.values()][0];
+  if (!entry || !entry.port) return res.json({ port: null });
+  res.json({ port: entry.port });
+});
+
+// Start preview dev server
+app.post('/api/preview/start', async (req, res) => {
+  const { projectPath } = req.body;
+  if (!projectPath) return res.status(400).json({ error: 'projectPath required' });
+
+  // Kill ALL existing preview servers
+  killAllPreviews();
+
+  const setup = detectDevSetup(projectPath);
+  if (!setup) return res.status(400).json({ error: 'Could not detect how to preview this project. It needs a package.json with a "dev" script, or an index.html file.' });
+
+  // Static HTML — serve directly, no spawned process needed
+  if (setup.type === 'static') {
+    const assignedPort = await findFreePort(setup.defaultPort);
+    const staticApp = express();
+    staticApp.use(express.static(setup.staticDir));
+    const staticServer = http.createServer(staticApp);
+    staticServer.listen(assignedPort, '127.0.0.1', () => {
+      previewServers.set(projectPath, { server: staticServer, port: assignedPort, isStatic: true });
+      console.log(`Static preview: ${setup.staticDir} → port ${assignedPort}`);
+      return res.json({ ready: true, url: `http://localhost:${assignedPort}` });
+    });
+    staticServer.on('error', (err) => {
+      return res.status(500).json({ error: 'Failed to start static server: ' + err.message });
+    });
+    return;
+  }
+
+  // Auto-install dependencies if missing
+  const depsResult = ensureDepsInstalled(projectPath);
+  if (!depsResult.installed) {
+    return res.status(500).json({ error: depsResult.error });
+  }
+
+  // Find a guaranteed-free port
+  const assignedPort = await findFreePort(setup.defaultPort);
+
+  let responded = false;
+  let detectedPort = assignedPort;
+
+  let args = [...setup.args];
+  if (setup.portFlag && setup.portArgs) {
+    args.push(setup.portFlag, ...setup.portArgs, String(assignedPort));
+  }
+
+  try {
+    const proc = spawn(setup.cmd, args, {
+      cwd: projectPath,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      detached: true,
+      env: {
+        ...process.env,
+        FORCE_COLOR: '0',
+        BROWSER: 'none',
+        HOME: os.homedir(),
+        PATH: FULL_PATH,
+        PORT: String(assignedPort),
+      },
+    });
+
+    previewServers.set(projectPath, { proc, port: assignedPort });
+    console.log(`Preview started: ${projectPath} → port ${assignedPort} (pid ${proc.pid})`);
+
+    // Wait until the dev server actually responds before telling the client
+    function waitForServer(port, retries = 20) {
+      if (responded) return;
+      const checkReq = http.get(`http://127.0.0.1:${port}`, (resp) => {
+        if (!responded) {
+          responded = true;
+          res.json({ ready: true, url: `http://localhost:${port}` });
+        }
+      });
+      checkReq.on('error', () => {
+        if (retries > 0 && !responded) {
+          setTimeout(() => waitForServer(port, retries - 1), 500);
+        }
+      });
+      checkReq.setTimeout(2000, () => checkReq.destroy());
+    }
+
+    const onOutput = (data) => {
+      const text = data.toString();
+      const port = extractPort(text);
+      if (port) detectedPort = port;
+
+      const entry = previewServers.get(projectPath);
+      if (entry) entry.port = detectedPort;
+
+      // Once we detect a port, start polling until it actually responds
+      if (!responded && port) {
+        waitForServer(detectedPort);
+      }
+    };
+
+    proc.stdout.on('data', onOutput);
+    proc.stderr.on('data', onOutput);
+
+    proc.on('error', (err) => {
+      console.error('Preview server error:', err.message);
+      previewServers.delete(projectPath);
+      if (!responded) { responded = true; res.status(500).json({ error: err.message }); }
+    });
+
+    proc.on('exit', (code) => {
+      console.log(`Preview exited: ${projectPath} (code ${code})`);
+      previewServers.delete(projectPath);
+    });
+
+    // Timeout: if no port detected after 20s, check if it's responding
+    setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        const checkReq = http.get(`http://127.0.0.1:${assignedPort}`, () => {
+          res.json({ ready: true, url: `http://localhost:${assignedPort}` });
+        });
+        checkReq.on('error', () => {
+          res.status(500).json({ error: 'Dev server did not start. Check the project has a valid dev command and dependencies are installed.' });
+        });
+        checkReq.setTimeout(5000, () => {
+          checkReq.destroy();
+          res.status(500).json({ error: 'Dev server timed out. Try running "npm install" in the project first.' });
+        });
+      }
+    }, 20000);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/preview/stop', (req, res) => {
+  const { projectPath } = req.body;
+  if (!projectPath || !previewServers.has(projectPath)) return res.json({ stopped: false });
+  const entry = previewServers.get(projectPath);
+  if (entry.isStatic && entry.server) {
+    try { entry.server.close(); } catch {}
+  } else if (entry.proc) {
+    try { process.kill(-entry.proc.pid, 'SIGTERM'); } catch {}
+  }
+  previewServers.delete(projectPath);
+  console.log(`Preview stopped: ${projectPath}`);
+  res.json({ stopped: true });
+});
+
+app.post('/api/preview/stop-all', (req, res) => {
+  killAllPreviews();
+  res.json({ stopped: true });
+});
+
+app.get('/api/preview/status', (req, res) => {
+  const entry = [...previewServers.values()][0];
+  if (!entry) return res.json({ running: false });
+  res.json({ running: true });
+});
 
 wss.on('connection', (ws) => {
   let childProc = null;
@@ -78,7 +442,7 @@ wss.on('connection', (ws) => {
               TERM: 'xterm-256color',
               FORCE_COLOR: '1',
               HOME: os.homedir(),
-              PATH: process.env.PATH || '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin',
+              PATH: FULL_PATH,
             },
           });
 
@@ -164,10 +528,89 @@ wss.on('connection', (ws) => {
   });
 });
 
+// ── File watcher WebSocket ──────────────────────────────────────────────────
+fileWss.on('connection', (ws, req) => {
+  const url = new URL(req.url, 'http://localhost');
+  const projectPath = url.searchParams.get('path');
+  if (!projectPath || !path.resolve(projectPath).startsWith(os.homedir())) {
+    ws.close(1008, 'Invalid path');
+    return;
+  }
+
+  let watcher = null;
+  const debounceTimers = new Map();
+
+  try {
+    // macOS supports recursive fs.watch natively
+    watcher = fs.watch(projectPath, { recursive: true }, (eventType, filename) => {
+      if (!filename) return;
+      // Skip ignored directories
+      const parts = filename.split(path.sep);
+      if (parts.some(p => IGNORED_DIRS.has(p) || p.startsWith('.'))) return;
+
+      // Debounce: batch rapid changes to the same file (e.g. save + format)
+      const key = filename;
+      if (debounceTimers.has(key)) clearTimeout(debounceTimers.get(key));
+      debounceTimers.set(key, setTimeout(() => {
+        debounceTimers.delete(key);
+        if (ws.readyState === WebSocket.OPEN) {
+          const fullPath = path.join(projectPath, filename);
+          const exists = fs.existsSync(fullPath);
+          ws.send(JSON.stringify({
+            type: 'fileChange',
+            event: exists ? eventType : 'delete',
+            path: fullPath,
+            filename,
+          }));
+        }
+      }, 150));
+    });
+    console.log(`File watcher started: ${projectPath}`);
+  } catch (err) {
+    console.error('File watcher error:', err.message);
+    ws.close(1011, 'Watch failed');
+    return;
+  }
+
+  ws.on('close', () => {
+    if (watcher) watcher.close();
+    for (const t of debounceTimers.values()) clearTimeout(t);
+    debounceTimers.clear();
+    console.log(`File watcher stopped: ${projectPath}`);
+  });
+});
+
 // SPA fallback
 app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/dist/index.html'));
 });
+
+// Route ALL WebSocket upgrades explicitly
+server.on('upgrade', (req, socket, head) => {
+  const url = new URL(req.url, 'http://localhost');
+
+  if (url.pathname === '/ws') {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req);
+    });
+  } else if (url.pathname === '/ws/files') {
+    fileWss.handleUpgrade(req, socket, head, (ws) => {
+      fileWss.emit('connection', ws, req);
+    });
+  } else {
+    // Proxy to preview dev server (HMR)
+    const entry = [...previewServers.values()][0];
+    if (entry && entry.port) {
+      proxy.ws(req, socket, head, { target: `http://127.0.0.1:${entry.port}` });
+    } else {
+      socket.destroy();
+    }
+  }
+});
+
+// Clean up preview servers on exit
+process.on('SIGTERM', () => { killAllPreviews(); process.exit(0); });
+process.on('SIGINT', () => { killAllPreviews(); process.exit(0); });
 
 const PORT = process.env.PORT || 3456;
 server.listen(PORT, () => {
