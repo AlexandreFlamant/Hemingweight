@@ -167,6 +167,7 @@ function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'running' | 'exited'>('idle');
+  const [chatOnly, setChatOnly] = useState(false);
   const [projectSearch, setProjectSearch] = useState('');
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -201,6 +202,8 @@ function App() {
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [integrationSettings, setIntegrationSettings] = useState<string | null>(null);
   const [showDocsMenu, setShowDocsMenu] = useState(false);
+  const [showGitActions, setShowGitActions] = useState(false);
+  const [gitAction, setGitAction] = useState<'commit-push' | 'commit' | 'push'>('commit-push');
   const [gitPushing, setGitPushing] = useState(false);
   const [gitPushMsg, setGitPushMsg] = useState('');
   const [gitHistory, setGitHistory] = useState<{ hash: string; short: string; message: string; author: string; date: string }[]>([]);
@@ -379,7 +382,11 @@ function App() {
     if (term) {
       term.clear();
       term.writeln(`\x1b[38;2;224;122;75m  Connecting to: ${project.name}\x1b[0m`);
-      term.writeln(`\x1b[38;5;60m  ${project.path}\x1b[0m\r\n`);
+      term.writeln(`\x1b[38;5;60m  ${project.path}\x1b[0m`);
+      if (chatOnly) {
+        term.writeln(`\x1b[38;2;96;165;250m  Chat-only mode — Claude can read but won't edit files\x1b[0m`);
+      }
+      term.writeln('');
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -391,7 +398,7 @@ function App() {
       setStatus('running');
       const cols = term?.cols || 120;
       const rows = term?.rows || 40;
-      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows }));
+      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows, chatOnly }));
 
       term?.onData((data: string) => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -431,7 +438,7 @@ function App() {
       setStatus('idle');
       term?.writeln('\r\n\x1b[31m  Connection error.\x1b[0m');
     };
-  }, [selectedProject, previewRunning]);
+  }, [selectedProject, previewRunning, chatOnly]);
 
   const launchPreview = useCallback(async () => {
     if (!selectedProject) return;
@@ -925,83 +932,133 @@ function App() {
           </div>
         )}
 
-        {/* Git actions bar */}
+        {/* Bottom bar: git action + chat mode */}
         {selectedProject && (
           <div style={{
             padding: '10px 16px', borderTop: '1px solid #2a2a3a',
-            display: 'flex', gap: 8, flexShrink: 0,
+            display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center',
           }}>
+            {/* Chat-only mode toggle */}
             <button
-              onClick={async () => {
-                if (!selectedProject) return;
-                const gitEnv = { projectPath: selectedProject.path };
-                try {
-                  await fetch('/api/git/commit-and-push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectPath: selectedProject.path, commitOnly: true }),
-                  });
-                  termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Committed.\x1b[0m');
-                } catch {}
+              onClick={() => {
+                const next = !chatOnly;
+                setChatOnly(next);
+                if (selectedProject && (status === 'running' || status === 'exited')) {
+                  setTimeout(() => connectToProject(selectedProject), 50);
+                }
               }}
               style={{
-                flex: 1, padding: '8px', borderRadius: 8,
-                background: '#27272a', border: '1px solid #3f3f46',
-                color: '#a1a1aa', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                transition: 'border-color 0.15s, color 0.15s',
+                height: 34, borderRadius: 8, padding: '0 10px',
+                background: chatOnly ? 'rgba(96,165,250,0.12)' : '#27272a',
+                border: chatOnly ? '1px solid rgba(96,165,250,0.3)' : '1px solid #3f3f46',
+                color: chatOnly ? '#60a5fa' : '#a1a1aa',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+                flexShrink: 0, fontSize: 12, fontWeight: 600,
+                transition: 'all 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#e07a4b'; e.currentTarget.style.color = '#e4e4ef'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#3f3f46'; e.currentTarget.style.color = '#a1a1aa'; }}
-              title="Save a snapshot locally"
+              title={chatOnly ? 'Chat-only mode active — Claude won\'t edit files. Click to switch to full mode.' : 'Switch to chat-only mode — ask questions without changing code'}
             >
-              Commit
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M2 5c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6l-3 3V11H4a2 2 0 0 1-2-2V5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {chatOnly ? 'Chat only' : 'Chat'}
             </button>
-            <button
-              onClick={async () => {
-                if (!selectedProject) return;
-                try {
-                  await fetch('/api/git/push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectPath: selectedProject.path }),
-                  });
-                  termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Pushed to GitHub.\x1b[0m');
-                } catch {}
-              }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 8,
-                background: '#27272a', border: '1px solid #3f3f46',
-                color: '#a1a1aa', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                transition: 'border-color 0.15s, color 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#e07a4b'; e.currentTarget.style.color = '#e4e4ef'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#3f3f46'; e.currentTarget.style.color = '#a1a1aa'; }}
-              title="Upload commits to GitHub"
-            >
-              Push
-            </button>
-            <button
-              onClick={async () => {
-                if (!selectedProject) return;
-                try {
-                  await fetch('/api/git/commit-and-push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectPath: selectedProject.path }),
-                  });
-                  termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Committed & pushed to GitHub.\x1b[0m');
-                } catch {}
-              }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 8,
-                background: '#e07a4b', border: 'none',
-                color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                transition: 'opacity 0.15s',
-              }}
-              title="Commit and push in one step"
-            >
-              Commit & Push
-            </button>
+
+            <div style={{ flex: 1 }} />
+
+            {/* Git action split button */}
+            <div style={{ display: 'flex', position: 'relative' }}>
+              <button
+                onClick={async () => {
+                  if (!selectedProject) return;
+                  try {
+                    if (gitAction === 'commit') {
+                      await fetch('/api/git/commit-and-push', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectPath: selectedProject.path, commitOnly: true }),
+                      });
+                      termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Committed.\x1b[0m');
+                    } else if (gitAction === 'push') {
+                      await fetch('/api/git/push', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectPath: selectedProject.path }),
+                      });
+                      termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Pushed to GitHub.\x1b[0m');
+                    } else {
+                      await fetch('/api/git/commit-and-push', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectPath: selectedProject.path }),
+                      });
+                      termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Committed & pushed.\x1b[0m');
+                    }
+                  } catch {}
+                }}
+                style={{
+                  height: 34, padding: '0 14px', borderRadius: '8px 0 0 8px',
+                  background: '#e07a4b', border: 'none',
+                  color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                  <circle cx="8" cy="13" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M8 4.5v7" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+                {{ 'commit-push': 'Commit & Push', 'commit': 'Commit', 'push': 'Push' }[gitAction]}
+              </button>
+              <button
+                onClick={() => setShowGitActions(v => !v)}
+                style={{
+                  height: 34, width: 28, borderRadius: '0 8px 8px 0',
+                  background: '#c96a3e', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.15)',
+                  color: '#fff', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ transform: showGitActions ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                  <path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {showGitActions && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', right: 0,
+                  marginBottom: 6, background: '#1c1c20', border: '1px solid #2a2a3a',
+                  borderRadius: 10, zIndex: 100,
+                  boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
+                  minWidth: 200, padding: '4px',
+                }}>
+                  {[
+                    { key: 'commit-push' as const, label: 'Commit & Push', desc: 'Save and upload to GitHub' },
+                    { key: 'commit' as const, label: 'Commit', desc: 'Save a local snapshot' },
+                    { key: 'push' as const, label: 'Push', desc: 'Upload commits to GitHub' },
+                  ].map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => { setGitAction(opt.key); setShowGitActions(false); }}
+                      style={{
+                        width: '100%', padding: '8px 12px', borderRadius: 8,
+                        background: gitAction === opt.key ? 'rgba(224,122,75,0.1)' : 'transparent',
+                        border: 'none', color: '#e4e4ef', cursor: 'pointer', textAlign: 'left',
+                        display: 'flex', flexDirection: 'column', gap: 2,
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { if (gitAction !== opt.key) e.currentTarget.style.background = '#222228'; }}
+                      onMouseLeave={e => { if (gitAction !== opt.key) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {opt.label}
+                        {gitAction === opt.key && (
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 4" stroke="#e07a4b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#71717a' }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1658,6 +1715,30 @@ function App() {
                 minWidth: 220, padding: '6px',
               }}>
                 <button
+                  onClick={() => { window.open('/site/', '_blank'); setShowDocsMenu(false); }}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    background: 'transparent', border: 'none',
+                    color: '#e4e4ef', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#222228'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M2 2h12v12H2z" stroke="currentColor" strokeWidth="1.2" />
+                    <path d="M5 5h6M5 8h6M5 11h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                  Landing Page
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 'auto', opacity: 0.4 }}>
+                    <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                <div style={{ height: 1, background: '#2a2a3a', margin: '2px 8px' }} />
+
+                <button
                   onClick={() => { window.open('/docs', '_blank'); setShowDocsMenu(false); }}
                   style={{
                     width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -1674,53 +1755,6 @@ function App() {
                     <path d="M8 3v10" stroke="currentColor" strokeWidth="1.2" />
                   </svg>
                   Documentation
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 'auto', opacity: 0.4 }}>
-                    <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-
-                <div style={{ height: 1, background: '#2a2a3a', margin: '2px 8px' }} />
-
-                <button
-                  onClick={() => { window.open('/docs#section-8', '_blank'); setShowDocsMenu(false); }}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 8,
-                    background: 'transparent', border: 'none',
-                    color: '#e4e4ef', fontSize: 13, cursor: 'pointer', textAlign: 'left',
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#222228'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
-                    <path d="M6 6.5a2 2 0 0 1 3.5 1.5c0 1-1.5 1.5-1.5 1.5M8 12h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  FAQ
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 'auto', opacity: 0.4 }}>
-                    <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-
-                <div style={{ height: 1, background: '#2a2a3a', margin: '2px 8px' }} />
-
-                <button
-                  onClick={() => { window.open('https://github.com/AlexandreFlamant/clawable', '_blank'); setShowDocsMenu(false); }}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 8,
-                    background: 'transparent', border: 'none',
-                    color: '#e4e4ef', fontSize: 13, cursor: 'pointer', textAlign: 'left',
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#222228'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0 }}>
-                    <path fillRule="evenodd" clipRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                  </svg>
-                  GitHub
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 'auto', opacity: 0.4 }}>
                     <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>

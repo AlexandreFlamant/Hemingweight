@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clawable — Build websites by describing what you want</title>
+  <meta name="description" content="Clawable is a browser-based IDE powered by Claude AI. Describe what you want in plain English and watch it get built.">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      background: #09090b;
+      color: #e4e4ef;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a {
+      color: #e07a4b;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    a:hover {
+      opacity: 0.85;
+    }
+
+    /* ---- NAV ---- */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(9, 9, 11, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(228, 228, 239, 0.08);
+      padding: 0 24px;
+    }
+
+    nav .nav-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+
+    nav .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: #e4e4ef;
+    }
+
+    nav .logo img {
+      width: 32px;
+      height: 32px;
+    }
+
+    nav .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    nav .nav-links a {
+      color: #a1a1aa;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    nav .nav-links a:hover {
+      color: #e4e4ef;
+      opacity: 1;
+    }
+
+    /* ---- SECTIONS ---- */
+    section {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ---- HERO ---- */
+    .hero {
+      padding-top: 160px;
+      padding-bottom: 120px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      max-width: 720px;
+      margin: 0 auto 24px;
+    }
+
+    .hero h1 span {
+      color: #e07a4b;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: #a1a1aa;
+      max-width: 540px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      background: #e07a4b;
+      color: #09090b;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 36px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(224, 122, 75, 0.3);
+      opacity: 1;
+      color: #09090b;
+    }
+
+    /* ---- FEATURES ---- */
+    .features {
+      padding-bottom: 120px;
+    }
+
+    .section-label {
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #e07a4b;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: -0.02em;
+      margin-bottom: 56px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: rgba(228, 228, 239, 0.04);
+      border: 1px solid rgba(228, 228, 239, 0.08);
+      border-radius: 16px;
+      padding: 32px 28px;
+      transition: border-color 0.25s, background 0.25s;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(224, 122, 75, 0.3);
+      background: rgba(228, 228, 239, 0.06);
+    }
+
+    .feature-icon {
+      font-size: 1.75rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      color: #a1a1aa;
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+
+    /* ---- INSTALL ---- */
+    .install {
+      padding-bottom: 120px;
+    }
+
+    .steps {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(224, 122, 75, 0.15);
+      color: #e07a4b;
+      font-weight: 700;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step-content h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .step-content p {
+      color: #a1a1aa;
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+
+    .code-block {
+      position: relative;
+      background: #111113;
+      border: 1px solid rgba(228, 228, 239, 0.1);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+
+    .code-block code {
+      font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+      font-size: 0.85rem;
+      color: #e4e4ef;
+      white-space: pre;
+      word-break: break-all;
+    }
+
+    .btn-download {
+      display: inline-block;
+      background: #e07a4b;
+      color: #09090b;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px 28px;
+      border-radius: 10px;
+      margin-top: 14px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(224, 122, 75, 0.3);
+      opacity: 1;
+      color: #09090b;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(228, 228, 239, 0.08);
+      border: 1px solid rgba(228, 228, 239, 0.12);
+      color: #a1a1aa;
+      font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+      font-size: 0.75rem;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: rgba(228, 228, 239, 0.14);
+      color: #e4e4ef;
+    }
+
+    .step-content code.inline {
+      font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+      font-size: 0.85rem;
+      background: rgba(228, 228, 239, 0.08);
+      padding: 2px 7px;
+      border-radius: 5px;
+    }
+
+    /* ---- FAQ ---- */
+    .faq {
+      padding-bottom: 120px;
+    }
+
+    .faq-list {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .faq-item {
+      border: 1px solid rgba(228, 228, 239, 0.08);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .faq-question {
+      width: 100%;
+      background: rgba(228, 228, 239, 0.03);
+      border: none;
+      color: #e4e4ef;
+      text-align: left;
+      padding: 20px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .faq-question:hover {
+      background: rgba(228, 228, 239, 0.06);
+    }
+
+    .faq-question .chevron {
+      font-size: 0.85rem;
+      color: #a1a1aa;
+      transition: transform 0.25s;
+    }
+
+    .faq-item.open .faq-question .chevron {
+      transform: rotate(180deg);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .faq-answer-inner {
+      padding: 0 24px 20px;
+      color: #a1a1aa;
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    /* ---- FOOTER ---- */
+    footer {
+      border-top: 1px solid rgba(228, 228, 239, 0.08);
+      padding: 40px 24px;
+    }
+
+    .footer-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-inner .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #a1a1aa;
+    }
+
+    .footer-inner .logo img {
+      width: 24px;
+      height: 24px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      color: #a1a1aa;
+      font-size: 0.9rem;
+    }
+
+    .footer-links a:hover {
+      color: #e4e4ef;
+    }
+
+    /* ---- MOBILE ---- */
+    @media (max-width: 640px) {
+      .hero {
+        padding-top: 120px;
+        padding-bottom: 80px;
+      }
+
+      .features, .install, .faq {
+        padding-bottom: 80px;
+      }
+
+      nav .nav-links {
+        gap: 20px;
+      }
+
+      .step {
+        gap: 14px;
+      }
+
+      .code-block code {
+        font-size: 0.75rem;
+      }
+
+      .footer-inner {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <div class="logo">
+        <img src="/logo.png" alt="Clawable">
+        Clawable
+      </div>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="https://github.com/AlexandreFlamant/clawable" target="_blank">GitHub</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <h1>Build websites by <span>describing</span> what you want.</h1>
+    <p>Clawable is a browser-based IDE powered by Claude AI. Describe what you want in plain English&nbsp;&mdash; and watch it get built, live.</p>
+    <a href="#install" class="btn-primary">Get started</a>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <p class="section-label">Features</p>
+    <h2 class="section-title">Everything you need to build for the web</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="feature-icon" aria-hidden="true">&#x1F4AC;</span>
+        <h3>AI-powered building</h3>
+        <p>Describe what you want in plain English. Claude writes the code, creates the files, and builds your project from scratch.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon" aria-hidden="true">&#x1F50D;</span>
+        <h3>Live preview</h3>
+        <p>See your site update in real time as it's being built. No need to switch between tools or refresh the browser.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon" aria-hidden="true">&#x1F4C4;</span>
+        <h3>Code viewer</h3>
+        <p>Browse and inspect every file Claude generates. Understand what's happening under the hood, or make manual edits.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon" aria-hidden="true">&#x1F517;</span>
+        <h3>One-click integrations</h3>
+        <p>Connect to GitHub, Supabase, and more. Push your projects to a repo or add a backend with a single command.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section class="install" id="install">
+    <p class="section-label">Get started</p>
+    <h2 class="section-title">Install Clawable in 5 minutes</h2>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h3>Open Terminal</h3>
+          <p>Press <code class="inline">Cmd + Space</code> to open Spotlight, type <code class="inline">Terminal</code>, and press Enter.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h3>Run the installer</h3>
+          <p>Copy and paste this command into Terminal, then press Enter.</p>
+          <div class="code-block">
+            <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash</code>
+            <button class="copy-btn" onclick="copyCommand()">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h3>Install the Chrome extension</h3>
+          <p>Download the extension, unzip it, then load it into Chrome.</p>
+          <a href="https://github.com/AlexandreFlamant/clawable/releases/latest/download/clawable-extension.zip" class="btn-download" download>Download Chrome Extension</a>
+          <p style="margin-top: 16px;">Then open Chrome and go to <code class="inline">chrome://extensions</code>, enable <strong>Developer Mode</strong> (top right toggle), click <strong>Load Unpacked</strong>, and select the unzipped folder.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h3>Sign in to Claude</h3>
+          <p>Click the Clawable extension icon in your Chrome toolbar. On first launch, you'll be prompted to sign in to your Claude account.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <h3>Start building</h3>
+          <p>Type what you want to build and hit Enter. That's it.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="faq">
+    <p class="section-label">FAQ</p>
+    <h2 class="section-title">Frequently asked questions</h2>
+    <div class="faq-list">
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          What is Clawable?
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">A browser-based IDE powered by Claude AI. You describe what you want in plain English, and it builds it for you &mdash; complete with a live preview, code viewer, and git integration.</div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          What is Claude Code?
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">Claude Code is the AI that does the coding. It's made by Anthropic. Clawable uses it behind the scenes to write, edit, and manage your project files.</div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Do I need to know how to code?
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">No. Just describe what you want in plain English. Clawable and Claude handle the rest.</div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          How much does it cost?
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">Clawable itself is free and open source. You need a Claude account to use it. Claude Max costs $100/month for unlimited usage, or you can use pay-as-you-go pricing with an API key.</div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          What can I build?
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">Landing pages, web apps, dashboards, blogs, internal tools &mdash; anything that runs in a browser. If you can describe it, Clawable can build it.</div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Where are my projects saved?
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">Everything is saved in the <code style="font-family:'SF Mono','Fira Code',Menlo,monospace;font-size:0.85rem;background:rgba(228,228,239,0.08);padding:2px 7px;border-radius:5px;">~/Developer</code> folder on your computer. Your files never leave your machine unless you push to GitHub.</div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" onclick="toggleFaq(this)">
+          Mac only?
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">Yes, for now. Windows and Linux support is coming soon.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="logo">
+        <img src="/logo.png" alt="Clawable">
+        Clawable
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/AlexandreFlamant/clawable" target="_blank">GitHub</a></li>
+        <li><a href="#" target="_blank">Docs</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script>
+    function copyCommand() {
+      var text = document.getElementById('install-cmd').textContent;
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+
+    function toggleFaq(button) {
+      var item = button.parentElement;
+      var answer = item.querySelector('.faq-answer');
+      var isOpen = item.classList.contains('open');
+
+      // Close all
+      document.querySelectorAll('.faq-item').forEach(function(el) {
+        el.classList.remove('open');
+        el.querySelector('.faq-answer').style.maxHeight = null;
+      });
+
+      // Open clicked if it was closed
+      if (!isOpen) {
+        item.classList.add('open');
+        answer.style.maxHeight = answer.scrollHeight + 'px';
+      }
+    }
+  </script>
+
+</body>
+</html>

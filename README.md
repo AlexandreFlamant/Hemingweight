@@ -14,6 +14,77 @@ cd clawable
 
 Then open **http://localhost:3456** in your browser.
 
+### One-Line Install (Recommended)
+
+If you're setting up from scratch, this single command installs everything you need:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
+```
+
+This installs Node.js, Python 3, Git, Claude Code CLI, downloads Clawable, builds it, and registers the Chrome extension. After it finishes:
+
+1. Open Chrome → go to `chrome://extensions`
+2. Turn on **Developer mode** (top right toggle)
+3. Click **Load unpacked** → select `~/Developer/clawable/extension`
+4. Click the Clawable extension icon
+5. Sign in to your Claude account when prompted
+6. Start building!
+
+---
+
+## Onboarding Guide
+
+New to Clawable? Here's everything you need to get started:
+
+### Step 1: Install
+
+Open your Terminal (press Cmd+Space, type "Terminal", press Enter) and paste:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
+```
+
+This takes about 2 minutes. You'll see green checkmarks as each component is installed.
+
+### Step 2: Add the Chrome Extension
+
+1. Open Chrome
+2. Go to `chrome://extensions` (type it in the address bar)
+3. Turn on **Developer mode** (toggle in the top right)
+4. Click **Load unpacked**
+5. Navigate to `~/Developer/clawable/extension` and select it
+
+You'll see the Clawable claw icon appear in your Chrome toolbar.
+
+### Step 3: Sign in to Claude
+
+1. Click the Clawable extension icon
+2. Open Clawable (Side Panel or Popup Window)
+3. Select any project — Claude Code will start
+4. On first launch, Claude Code will ask you to sign in. You need either:
+   - **Claude Max** ($100/month, unlimited) — sign up at [claude.ai](https://claude.ai)
+   - **Anthropic API key** (pay as you go) — get one at [console.anthropic.com](https://console.anthropic.com)
+
+### Step 4: Start Building
+
+1. Click the project dropdown and select **New Project**
+2. Give it a name (e.g., "my-website")
+3. In the terminal, describe what you want: *"Build me a landing page for a bakery with a menu and contact form"*
+4. Watch Claude build it — the preview updates automatically
+5. Keep chatting to refine: *"Make the header dark green"*, *"Add a photo gallery"*
+
+### What's What
+
+| Part of the screen | What it does |
+|---|---|
+| **Left panel** | Chat with Claude — type what you want built |
+| **Preview tab** | See your website as it's being built |
+| **Code tab** | Browse the files Claude created |
+| **CLAUDE.md tab** | Edit the file that gives Claude context about your project |
+| **Integrations** | Connect GitHub (save your code) and Supabase (add a database) |
+| **Clock icon** | See version history — go back to any previous version |
+
 ### Requirements
 
 - **Node.js** (v18+)

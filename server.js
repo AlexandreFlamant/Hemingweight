@@ -22,6 +22,7 @@ const fileWss = new WebSocket.Server({ noServer: true });
 
 // Serve static frontend in production
 app.use(express.static(path.join(__dirname, 'client/dist')));
+app.use('/site', express.static(path.join(__dirname, 'site')));
 app.use(express.json());
 
 const PTY_BRIDGE = path.join(__dirname, 'pty-bridge.py');
@@ -1135,6 +1136,7 @@ wss.on('connection', (ws) => {
         const cwd = msg.cwd || process.cwd();
         const cols = msg.cols || 120;
         const rows = msg.rows || 40;
+        const chatOnly = msg.chatOnly || false;
 
         // Kill existing process if any
         if (childProc) {
@@ -1143,13 +1145,19 @@ wss.on('connection', (ws) => {
         }
 
         try {
+          // Build claude command args
+          const claudeArgs = ['/opt/homebrew/bin/claude'];
+          if (chatOnly) {
+            claudeArgs.push('--append-system-prompt', 'IMPORTANT: You are in CHAT-ONLY MODE. You must ONLY answer questions, explain code, and have conversations. You must NOT use any tools that modify files — no Edit, Write, Bash, or any other tool that creates, modifies, or deletes files. If the user asks you to change something, politely explain that you are in chat-only mode and they need to switch to full mode to make changes. You may use Read, Glob, Grep to look at code when answering questions.');
+          }
+
           // Use Python PTY bridge to get a real pseudo-terminal
           childProc = spawn('python3', [
             PTY_BRIDGE,
             String(cols),
             String(rows),
             cwd,
-            '/opt/homebrew/bin/claude'
+            ...claudeArgs
           ], {
             stdio: ['pipe', 'pipe', 'pipe'],
             env: {
