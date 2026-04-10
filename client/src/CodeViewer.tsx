@@ -302,7 +302,7 @@ export default function CodeViewer({ projectPath }: { projectPath: string }) {
   const lines = activeFile?.content.split('\n') || [];
 
   return (
-    <div style={{ display: 'flex', height: '100%', background: '#18181b' }}>
+    <div style={{ display: 'flex', position: 'absolute', inset: 0, background: '#18181b' }}>
       {/* File tree sidebar */}
       <div style={{
         width: 240,
