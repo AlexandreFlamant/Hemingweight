@@ -125,6 +125,20 @@
       line-height: 1.7;
     }
 
+    .hero-screenshot {
+      margin-top: 56px;
+      max-width: 960px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-screenshot img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(228, 228, 239, 0.1);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(228, 228, 239, 0.05);
+    }
+
     .btn-primary {
       display: inline-block;
       background: #e07a4b;
@@ -482,15 +496,118 @@
         text-align: center;
       }
     }
+    /* ---- PASSWORD GATE ---- */
+    #password-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #09090b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    #password-gate img {
+      width: 64px;
+      height: 64px;
+    }
+
+    #password-gate h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #e4e4ef;
+    }
+
+    #password-gate p {
+      font-size: 0.9rem;
+      color: #71717a;
+      max-width: 320px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    #password-gate input {
+      width: 300px;
+      padding: 12px 16px;
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 10px;
+      color: #e4e4ef;
+      font-size: 0.95rem;
+      outline: none;
+      text-align: center;
+      font-family: inherit;
+    }
+
+    #password-gate input:focus {
+      border-color: #e07a4b;
+    }
+
+    #password-gate .gate-btn {
+      padding: 10px 32px;
+      background: #e07a4b;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    #password-gate .gate-error {
+      color: #f87171;
+      font-size: 0.85rem;
+      height: 20px;
+    }
   </style>
 </head>
 <body>
+
+  <!-- PASSWORD GATE -->
+  <div id="password-gate">
+    <img src="logo.png" alt="Clawable">
+    <h2>Clawable</h2>
+    <p>This is an early preview. Enter the access code to continue.</p>
+    <input type="password" id="gate-input" placeholder="Access code" onkeydown="if(event.key==='Enter')checkGate()" autofocus>
+    <button class="gate-btn" onclick="checkGate()">Enter</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+
+  <script>
+    (function() {
+      var PASS_HASH = '8a9bcf3c7e2d1f4a5b6c0d8e9f1a2b3c';
+      function simpleHash(s) {
+        var h = 0;
+        for (var i = 0; i < s.length; i++) {
+          h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+        }
+        return h.toString(16);
+      }
+      var stored = localStorage.getItem('clawable_access');
+      if (stored === 'ErnestoHemingweight') {
+        document.getElementById('password-gate').style.display = 'none';
+      }
+      window.checkGate = function() {
+        var input = document.getElementById('gate-input').value;
+        if (input === 'ErnestoHemingweight') {
+          localStorage.setItem('clawable_access', input);
+          document.getElementById('password-gate').style.display = 'none';
+        } else {
+          document.getElementById('gate-error').textContent = 'Incorrect access code';
+          document.getElementById('gate-input').value = '';
+        }
+      };
+    })();
+  </script>
 
   <!-- NAV -->
   <nav>
     <div class="nav-inner">
       <div class="logo">
-        <img src="/logo.png" alt="Clawable">
+        <img src="logo.png" alt="Clawable">
         Clawable
       </div>
       <ul class="nav-links">
@@ -505,35 +622,45 @@
 
   <!-- HERO -->
   <section class="hero">
-    <h1>Build websites by <span>describing</span> what you want.</h1>
-    <p>Clawable is a browser-based IDE powered by Claude AI. Describe what you want in plain English&nbsp;&mdash; and watch it get built, live.</p>
+    <h1>Describe it. <span>Watch it get built.</span></h1>
+    <p>Clawable is an open-source, browser-based IDE. Type what you want. An AI writes the code, builds the files, and shows you the result&nbsp;&mdash; live.</p>
+    <p style="color:#3f3f46;font-size:0.85rem;font-style:italic;margin-bottom:32px;">(rebrand to Hemmingweight in progress)</p>
     <a href="#install" class="btn-primary">Get started</a>
+    <div class="hero-screenshot" style="position:relative;">
+      <img src="screenshot.png" alt="Clawable in action — Claude Code building a website with live preview">
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);border-radius:12px;">
+        <div style="display:flex;align-items:center;gap:12px;color:#fff;font-size:1rem;font-weight:600;opacity:0.8;">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="19" stroke="white" stroke-width="2"/><path d="M16 13l12 7-12 7V13z" fill="white"/></svg>
+          Video placeholder
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- FEATURES -->
   <section class="features" id="features">
     <p class="section-label">Features</p>
-    <h2 class="section-title">Everything you need to build for the web</h2>
+    <h2 class="section-title">Build. See. Ship.</h2>
     <div class="feature-grid">
       <div class="feature-card">
         <span class="feature-icon" aria-hidden="true">&#x1F4AC;</span>
-        <h3>AI-powered building</h3>
-        <p>Describe what you want in plain English. Claude writes the code, creates the files, and builds your project from scratch.</p>
+        <h3>Describe what you want</h3>
+        <p>No code required. Tell Clawable what to build in plain English and it builds it. A landing page. A dashboard. A full web app. Done.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon" aria-hidden="true">&#x1F50D;</span>
-        <h3>Live preview</h3>
-        <p>See your site update in real time as it's being built. No need to switch between tools or refresh the browser.</p>
+        <h3>Watch it happen live</h3>
+        <p>Your site renders as it's being built. No waiting. No refreshing. You see every change the moment it's made.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon" aria-hidden="true">&#x1F4C4;</span>
-        <h3>Code viewer</h3>
-        <p>Browse and inspect every file Claude generates. Understand what's happening under the hood, or make manual edits.</p>
+        <h3>Read every line</h3>
+        <p>Every file is yours. Browse the code, understand it, edit it. Nothing is hidden.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon" aria-hidden="true">&#x1F517;</span>
-        <h3>One-click integrations</h3>
-        <p>Connect to GitHub, Supabase, and more. Push your projects to a repo or add a backend with a single command.</p>
+        <h3>Connect your tools</h3>
+        <p>Link GitHub, Supabase, and more in one step. Push to a repo. Add a backend. Keep moving.</p>
       </div>
     </div>
   </section>
@@ -691,7 +818,7 @@ cd clawable
   <footer>
     <div class="footer-inner">
       <div class="logo">
-        <img src="/logo.png" alt="Clawable">
+        <img src="logo.png" alt="Clawable">
         Clawable
       </div>
       <ul class="footer-links">
@@ -744,6 +871,7 @@ cd clawable
         answer.style.maxHeight = answer.scrollHeight + 'px';
       }
     }
+
   </script>
 
 </body>
