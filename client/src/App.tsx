@@ -167,7 +167,6 @@ function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'running' | 'exited'>('idle');
-  const [chatOnly, setChatOnly] = useState(false);
   const [projectSearch, setProjectSearch] = useState('');
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -382,11 +381,7 @@ function App() {
     if (term) {
       term.clear();
       term.writeln(`\x1b[38;2;224;122;75m  Connecting to: ${project.name}\x1b[0m`);
-      term.writeln(`\x1b[38;5;60m  ${project.path}\x1b[0m`);
-      if (chatOnly) {
-        term.writeln(`\x1b[38;2;96;165;250m  Chat-only mode — Claude can read but won't edit files\x1b[0m`);
-      }
-      term.writeln('');
+      term.writeln(`\x1b[38;5;60m  ${project.path}\x1b[0m\r\n`);
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -398,7 +393,7 @@ function App() {
       setStatus('running');
       const cols = term?.cols || 120;
       const rows = term?.rows || 40;
-      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows, chatOnly }));
+      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows }));
 
       term?.onData((data: string) => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -438,7 +433,7 @@ function App() {
       setStatus('idle');
       term?.writeln('\r\n\x1b[31m  Connection error.\x1b[0m');
     };
-  }, [selectedProject, previewRunning, chatOnly]);
+  }, [selectedProject, previewRunning]);
 
   const launchPreview = useCallback(async () => {
     if (!selectedProject) return;
@@ -823,6 +818,24 @@ function App() {
               <div style={{ fontSize: 13, color: '#71717a', textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
                 Think of something you want to build
               </div>
+              <a
+                href="/docs"
+                target="_blank"
+                style={{
+                  marginTop: 8, fontSize: 12, color: '#71717a',
+                  textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5,
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#e07a4b'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#71717a'; }}
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path d="M1 3c1.5-1 3.5-1 5 0v10c-1.5-1-3.5-1-5 0V3z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M15 3c-1.5-1-3.5-1-5 0v10c1.5-1 3.5-1 5 0V3z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M8 3v10" stroke="currentColor" strokeWidth="1.3" />
+                </svg>
+                Documentation
+              </a>
             </div>
           )}
           <div
@@ -932,41 +945,13 @@ function App() {
           </div>
         )}
 
-        {/* Bottom bar: git action + chat mode */}
+        {/* Bottom bar: git action */}
         {selectedProject && (
           <div style={{
             padding: '10px 16px', borderTop: '1px solid #2a2a3a',
             display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center',
+            justifyContent: 'flex-end',
           }}>
-            {/* Chat-only mode toggle */}
-            <button
-              onClick={() => {
-                const next = !chatOnly;
-                setChatOnly(next);
-                if (selectedProject && (status === 'running' || status === 'exited')) {
-                  setTimeout(() => connectToProject(selectedProject), 50);
-                }
-              }}
-              style={{
-                height: 34, borderRadius: 8, padding: '0 10px',
-                background: chatOnly ? 'rgba(96,165,250,0.12)' : '#27272a',
-                border: chatOnly ? '1px solid rgba(96,165,250,0.3)' : '1px solid #3f3f46',
-                color: chatOnly ? '#60a5fa' : '#a1a1aa',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 6,
-                flexShrink: 0, fontSize: 12, fontWeight: 600,
-                transition: 'all 0.15s',
-              }}
-              title={chatOnly ? 'Chat-only mode active — Claude won\'t edit files. Click to switch to full mode.' : 'Switch to chat-only mode — ask questions without changing code'}
-            >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <path d="M2 5c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6l-3 3V11H4a2 2 0 0 1-2-2V5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {chatOnly ? 'Chat only' : 'Chat'}
-            </button>
-
-            <div style={{ flex: 1 }} />
-
             {/* Git action split button */}
             <div style={{ display: 'flex', position: 'relative' }}>
               <button

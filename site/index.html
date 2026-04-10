@@ -306,6 +306,38 @@
       color: #e4e4ef;
     }
 
+    .install-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 14px;
+      background: rgba(228, 228, 239, 0.05);
+      border-radius: 8px;
+      padding: 3px;
+      width: fit-content;
+    }
+
+    .install-tab {
+      padding: 6px 16px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: #71717a;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .install-tab.active {
+      background: #e07a4b;
+      color: #fff;
+    }
+
+    .install-tab:not(.active):hover {
+      color: #a1a1aa;
+    }
+
     .step-content code.inline {
       font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
       font-size: 0.85rem;
@@ -464,6 +496,7 @@
       <ul class="nav-links">
         <li><a href="#features">Features</a></li>
         <li><a href="#install">Install</a></li>
+        <li><a href="/docs" target="_blank">Docs</a></li>
         <li><a href="#faq">FAQ</a></li>
         <li><a href="https://github.com/AlexandreFlamant/clawable" target="_blank">GitHub</a></li>
       </ul>
@@ -523,10 +556,25 @@
         <div class="step-number">2</div>
         <div class="step-content">
           <h3>Run the installer</h3>
-          <p>Copy and paste this command into Terminal, then press Enter.</p>
-          <div class="code-block">
-            <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash</code>
-            <button class="copy-btn" onclick="copyCommand()">Copy</button>
+          <div class="install-tabs">
+            <button class="install-tab active" onclick="switchInstallTab('auto', this)">One-line install</button>
+            <button class="install-tab" onclick="switchInstallTab('manual', this)">Manual (git clone)</button>
+          </div>
+          <div id="install-auto">
+            <p>Copy and paste this command into Terminal, then press Enter. It installs everything automatically.</p>
+            <div class="code-block">
+              <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash</code>
+              <button class="copy-btn" onclick="copyCommand()">Copy</button>
+            </div>
+          </div>
+          <div id="install-manual" style="display:none;">
+            <p>If you already have Node.js, Python 3, Git, and Claude Code installed:</p>
+            <div class="code-block">
+              <code id="install-cmd-manual">git clone https://github.com/AlexandreFlamant/clawable.git
+cd clawable
+./install.sh</code>
+              <button class="copy-btn" onclick="copyManualCommand()">Copy</button>
+            </div>
           </div>
         </div>
       </div>
@@ -648,7 +696,7 @@
       </div>
       <ul class="footer-links">
         <li><a href="https://github.com/AlexandreFlamant/clawable" target="_blank">GitHub</a></li>
-        <li><a href="#" target="_blank">Docs</a></li>
+        <li><a href="/docs" target="_blank">Docs</a></li>
       </ul>
     </div>
   </footer>
@@ -657,10 +705,26 @@
     function copyCommand() {
       var text = document.getElementById('install-cmd').textContent;
       navigator.clipboard.writeText(text).then(function() {
-        var btn = document.querySelector('.copy-btn');
+        var btn = document.getElementById('install-auto').querySelector('.copy-btn');
         btn.textContent = 'Copied!';
         setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
       });
+    }
+
+    function copyManualCommand() {
+      var text = document.getElementById('install-cmd-manual').textContent;
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('install-manual').querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+
+    function switchInstallTab(tab, btn) {
+      document.getElementById('install-auto').style.display = tab === 'auto' ? 'block' : 'none';
+      document.getElementById('install-manual').style.display = tab === 'manual' ? 'block' : 'none';
+      document.querySelectorAll('.install-tab').forEach(function(t) { t.classList.remove('active'); });
+      btn.classList.add('active');
     }
 
     function toggleFaq(button) {

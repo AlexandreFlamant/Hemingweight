@@ -6,23 +6,25 @@
 
 ## Quick Start
 
+### Option A: One-Line Install (Recommended)
+
+If you're setting up from scratch, this single command installs everything you need — Node.js, Python 3, Git, Claude Code CLI, Clawable, and the Chrome extension:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
+```
+
+### Option B: Manual Install (git clone)
+
+If you already have Node.js, Python 3, Git, and Claude Code installed:
+
 ```bash
 git clone https://github.com/AlexandreFlamant/clawable.git
 cd clawable
 ./install.sh
 ```
 
-Then open **http://localhost:3456** in your browser.
-
-### One-Line Install (Recommended)
-
-If you're setting up from scratch, this single command installs everything you need:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
-```
-
-This installs Node.js, Python 3, Git, Claude Code CLI, downloads Clawable, builds it, and registers the Chrome extension. After it finishes:
+### After Installing
 
 1. Open Chrome → go to `chrome://extensions`
 2. Turn on **Developer mode** (top right toggle)
@@ -39,13 +41,21 @@ New to Clawable? Here's everything you need to get started:
 
 ### Step 1: Install
 
-Open your Terminal (press Cmd+Space, type "Terminal", press Enter) and paste:
+Open your Terminal (press Cmd+Space, type "Terminal", press Enter) and paste one of these:
 
+**One-line install** (installs everything automatically):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
 ```
 
-This takes about 2 minutes. You'll see green checkmarks as each component is installed.
+**Manual install** (if you already have Node.js, Python 3, Git, and Claude Code):
+```bash
+git clone https://github.com/AlexandreFlamant/clawable.git
+cd clawable
+./install.sh
+```
+
+The one-line install takes about 2 minutes. You'll see green checkmarks as each component is installed.
 
 ### Step 2: Add the Chrome Extension
 
@@ -84,6 +94,7 @@ You'll see the Clawable claw icon appear in your Chrome toolbar.
 | **CLAUDE.md tab** | Edit the file that gives Claude context about your project |
 | **Integrations** | Connect GitHub (save your code) and Supabase (add a database) |
 | **Clock icon** | See version history — go back to any previous version |
+| **Book icon** | Open documentation, FAQ, and GitHub links |
 
 ### Requirements
 
@@ -114,13 +125,15 @@ Your projects live in `~/Developer/`. Select or create one, and Claude Code star
 
 This is Claude Code running in a real terminal. Type prompts, approve tool use, and watch Claude work — exactly like the CLI, but in your browser.
 
-**Bottom bar** has three git quick-actions:
+**Bottom bar** has a split button for git actions:
 
-| Button | What it does |
+| Action | What it does |
 |--------|-------------|
-| **Commit** | `git add -A && git commit` — saves a local snapshot |
+| **Commit & Push** (default) | `git add -A && git commit && git push` — saves and uploads in one step |
+| **Commit** | `git add -A && git commit` — saves a local snapshot only |
 | **Push** | `git push` — uploads existing commits to GitHub |
-| **Commit & Push** | Both in one step |
+
+Click the arrow on the split button to change the default action.
 
 ### Right Panel — Tabs
 
@@ -129,7 +142,16 @@ This is Claude Code running in a real terminal. Type prompts, approve tool use, 
 | **Preview** | Live preview of your app in an iframe. Auto-refreshes on file changes. |
 | **Code** | Read-only file browser with syntax highlighting. |
 | **CLAUDE.md** | View and edit your project's CLAUDE.md (the file that gives Claude context). |
-| **Integrations** | Connect GitHub, Supabase, and more. |
+| **Integrations** | Connect GitHub, Supabase, and more via a dropdown with settings side panel. |
+
+### Toolbar Buttons
+
+| Button | What it does |
+|--------|-------------|
+| **Panel toggle** | Show/hide the left chat panel |
+| **Refresh** | Reload the preview iframe |
+| **Open in new tab** | Opens the dev server URL directly in a new browser tab |
+| **Book icon** | Help menu — links to Documentation, FAQ, and GitHub |
 
 ---
 
@@ -174,19 +196,21 @@ Open **Integrations > GitHub** to access the full Git panel:
 - **Commit history**: browse the last 30 commits; expand any to see its diff
 - **Restore**: roll back to any previous commit (creates a new commit on top)
 
-### From the Terminal Bottom Bar
+### From the Bottom Bar
 
-The three buttons at the bottom of the chat panel give you quick access without leaving the terminal:
+The split button at the bottom of the chat panel defaults to **Commit & Push**. Click the arrow to switch between:
 
-- **Commit** — saves a snapshot with message "Update from Clawable"
-- **Push** — pushes to the remote
-- **Commit & Push** — both at once
+- **Commit & Push** — save and upload to GitHub
+- **Commit** — save a local snapshot
+- **Push** — upload commits to GitHub
+
+Your selection persists until you change it.
 
 ### Version History
 
 Click the clock icon in the left panel header to open the version history overlay. Each commit shows:
 
-- Full commit message (no truncation)
+- Full commit message
 - Short hash and timestamp
 - Expand arrow to see changed files and the diff
 - **View** button to temporarily preview that version
@@ -196,7 +220,7 @@ Click the clock icon in the left panel header to open the version history overla
 
 ## Integrations
 
-Click **Integrations** in the tab bar to open the integrations dropdown.
+Click **Integrations** in the tab bar to open the integrations dropdown. Click any integration to open its settings panel on the right side of the dropdown.
 
 ### GitHub
 
@@ -213,12 +237,18 @@ Clawable will initialize git (if needed), add the remote, create an initial comm
 
 One-click setup for [Supabase](https://supabase.com) — auth, database, and storage.
 
-**To connect:**
-1. Create a project at [supabase.com](https://supabase.com/dashboard)
-2. Go to **Settings > API** in your Supabase dashboard
-3. Copy the **Project URL** (looks like `https://xxxxx.supabase.co`)
-4. Copy the **anon/public key** (starts with `eyJ...`)
-5. Open Integrations > Supabase > paste both values > click **Connect**
+**Where to find your credentials:**
+1. Go to [supabase.com/dashboard](https://supabase.com/dashboard)
+2. Select your project (or create one)
+3. Go to **Settings > API** (in the left sidebar)
+4. Copy the **Project URL** (looks like `https://xxxxx.supabase.co`)
+5. Copy the **anon/public key** (starts with `eyJ...`) — it's under "Project API keys"
+
+**To connect in Clawable:**
+1. Click **Integrations** in the tab bar
+2. Click **Supabase** — the settings panel opens on the right
+3. Paste your Project URL and Anon Key
+4. Click **Connect**
 
 **What happens when you connect:**
 - Installs `@supabase/supabase-js` via npm (or yarn/pnpm if detected)
@@ -329,6 +359,17 @@ No. Clawable runs entirely locally. Your code stays on your machine. The only ne
 - Claude Code's own API calls to Anthropic (same as using the CLI)
 - Git push/pull to your configured remote
 - npm install from the npm registry
+
+### Where do I find my Supabase credentials?
+
+Log in to [supabase.com/dashboard](https://supabase.com/dashboard), select your project, then go to **Settings > API**. You need the **Project URL** and the **anon/public key** (under "Project API keys").
+
+### How do I connect to GitHub?
+
+1. Create a repository at [github.com/new](https://github.com/new)
+2. Copy the repo URL
+3. In Clawable, click **Integrations > GitHub**
+4. Paste the URL and click **Connect**
 
 ---
 
