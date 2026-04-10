@@ -37,6 +37,117 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Docs page — renders README.md as a wiki-style page
+app.get('/docs', (req, res) => {
+  const readmePath = path.join(__dirname, 'README.md');
+  let md = '';
+  try { md = fs.readFileSync(readmePath, 'utf-8'); } catch { md = '# Clawable\n\nDocumentation not found.'; }
+  // Escape for embedding in HTML
+  const escaped = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clawable Docs</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0e0e10; color: #d4d4d8; display: flex; min-height: 100vh; }
+  /* Sidebar */
+  nav { width: 260px; flex-shrink: 0; background: #18181b; border-right: 1px solid #27272a; padding: 24px 0; position: fixed; top: 0; left: 0; bottom: 0; overflow-y: auto; }
+  nav .logo { display: flex; align-items: center; gap: 10px; padding: 0 20px 20px; border-bottom: 1px solid #27272a; margin-bottom: 12px; }
+  nav .logo img { width: 28px; height: 28px; }
+  nav .logo span { font-size: 15px; font-weight: 700; color: #e4e4ef; }
+  nav .nav-section { padding: 8px 16px 4px; font-size: 10px; font-weight: 700; color: #555570; text-transform: uppercase; letter-spacing: 0.08em; }
+  nav a { display: block; padding: 7px 20px; font-size: 13px; color: #a1a1aa; text-decoration: none; border-left: 2px solid transparent; transition: all 0.15s; }
+  nav a:hover { color: #e4e4ef; background: rgba(255,255,255,0.03); }
+  nav a.active { color: #e07a4b; border-left-color: #e07a4b; background: rgba(224,122,75,0.06); }
+  nav a.sub { padding-left: 32px; font-size: 12px; color: #71717a; }
+  nav a.sub:hover { color: #a1a1aa; }
+  /* Main */
+  main { flex: 1; margin-left: 260px; max-width: 820px; padding: 48px 56px 96px; }
+  /* Markdown styles */
+  main h1 { font-size: 32px; font-weight: 800; color: #e4e4ef; margin-bottom: 8px; border-bottom: 1px solid #27272a; padding-bottom: 16px; }
+  main h2 { font-size: 22px; font-weight: 700; color: #e4e4ef; margin-top: 48px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #27272a; scroll-margin-top: 24px; }
+  main h3 { font-size: 16px; font-weight: 600; color: #e4e4ef; margin-top: 32px; margin-bottom: 10px; scroll-margin-top: 24px; }
+  main p { font-size: 15px; line-height: 1.7; color: #a1a1aa; margin-bottom: 16px; }
+  main strong { color: #e4e4ef; }
+  main a { color: #e07a4b; text-decoration: none; }
+  main a:hover { text-decoration: underline; }
+  main ul, main ol { margin-bottom: 16px; padding-left: 24px; }
+  main li { font-size: 14px; line-height: 1.7; color: #a1a1aa; margin-bottom: 4px; }
+  main code { font-family: 'SF Mono', 'Fira Code', Menlo, monospace; font-size: 13px; background: #27272a; color: #e07a4b; padding: 2px 6px; border-radius: 4px; }
+  main pre { background: #1a1a1f; border: 1px solid #27272a; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; overflow-x: auto; }
+  main pre code { background: none; color: #d4d4d8; padding: 0; font-size: 13px; line-height: 1.6; }
+  main table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+  main th { text-align: left; padding: 10px 14px; background: #1a1a1f; color: #e4e4ef; font-weight: 600; border: 1px solid #27272a; }
+  main td { padding: 10px 14px; border: 1px solid #27272a; color: #a1a1aa; }
+  main hr { border: none; border-top: 1px solid #27272a; margin: 32px 0; }
+  main blockquote { border-left: 3px solid #e07a4b; padding: 8px 16px; margin-bottom: 16px; background: rgba(224,122,75,0.05); }
+  main blockquote p { color: #a1a1aa; margin: 0; }
+  /* Back link */
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: #71717a; font-size: 13px; text-decoration: none; margin-bottom: 24px; }
+  .back-link:hover { color: #e07a4b; }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { margin-left: 0; padding: 24px 20px 64px; }
+  }
+</style>
+</head>
+<body>
+<nav id="sidebar">
+  <div class="logo">
+    <img src="/logo.png" alt="Clawable">
+    <span>Docs</span>
+  </div>
+  <div id="nav-links"></div>
+</nav>
+<main>
+  <a href="/" class="back-link">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Back to Clawable
+  </a>
+  <div id="content"></div>
+</main>
+<script>
+  const raw = ${JSON.stringify(md)};
+  document.getElementById('content').innerHTML = marked.parse(raw);
+  // Build sidebar nav from h2 and h3
+  const headings = document.querySelectorAll('main h2, main h3');
+  const nav = document.getElementById('nav-links');
+  let currentSection = '';
+  headings.forEach((h, i) => {
+    const id = 'section-' + i;
+    h.id = id;
+    const a = document.createElement('a');
+    a.href = '#' + id;
+    a.textContent = h.textContent;
+    if (h.tagName === 'H3') a.className = 'sub';
+    nav.appendChild(a);
+  });
+  // Highlight active nav on scroll
+  const links = nav.querySelectorAll('a');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = nav.querySelector('a[href="#' + e.target.id + '"]');
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  headings.forEach(h => observer.observe(h));
+<\/script>
+</body>
+</html>`);
+});
+
 // API to list recent projects (directories)
 app.get('/api/projects', (req, res) => {
   const home = os.homedir();
@@ -44,15 +155,10 @@ app.get('/api/projects', (req, res) => {
   try {
     const dirs = fs.readdirSync(devDir, { withFileTypes: true })
       .filter(d => d.isDirectory())
-      .map(d => {
-        const projPath = path.join(devDir, d.name);
-        let gitConnected = false;
-        try {
-          execSync('git remote get-url origin', { cwd: projPath, stdio: 'pipe' });
-          gitConnected = true;
-        } catch {}
-        return { name: d.name, path: projPath, gitConnected };
-      })
+      .map(d => ({
+        name: d.name,
+        path: path.join(devDir, d.name)
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
     res.json(dirs);
   } catch {
@@ -312,7 +418,7 @@ app.post('/api/git/push', (req, res) => {
 });
 
 app.post('/api/git/commit-and-push', (req, res) => {
-  const { projectPath, message } = req.body;
+  const { projectPath, message, commitOnly } = req.body;
   if (!projectPath) return res.status(400).json({ error: 'projectPath required' });
   const home = os.homedir();
   if (!path.resolve(projectPath).startsWith(home)) {
@@ -326,6 +432,9 @@ app.post('/api/git/commit-and-push', (req, res) => {
       execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: projectPath, stdio: 'pipe', env: gitEnv });
     } catch {
       // Nothing to commit
+    }
+    if (commitOnly) {
+      return res.json({ ok: true, output: 'Committed locally' });
     }
     const output = execSync('git push', { cwd: projectPath, stdio: 'pipe', env: gitEnv }).toString();
     res.json({ ok: true, output });
@@ -477,25 +586,82 @@ app.get('/api/supabase/status', (req, res) => {
   }
   try {
     const prefix = detectEnvPrefix(projectPath);
-    const envPath = path.join(projectPath, '.env.local');
-    if (!fs.existsSync(envPath)) return res.json({ connected: false, prefix });
-    const content = fs.readFileSync(envPath, 'utf-8');
-    const urlKey = `${prefix}SUPABASE_URL`;
-    const anonKey = `${prefix}SUPABASE_ANON_KEY`;
-    const urlMatch = content.match(new RegExp(`^${urlKey}=(.+)$`, 'm'));
-    const hasKey = new RegExp(`^${anonKey}=.+`, 'm').test(content);
-    res.json({
-      connected: !!urlMatch && hasKey,
-      url: urlMatch ? urlMatch[1].trim() : undefined,
-      prefix,
-    });
+
+    // Method 1: Check .env files for SUPABASE_URL
+    const envFiles = ['.env.local', '.env', '.env.development', '.env.production'];
+    for (const envFile of envFiles) {
+      const envPath = path.join(projectPath, envFile);
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf-8');
+        const urlMatch = content.match(/SUPABASE_URL=(.+)/m);
+        const hasKey = /SUPABASE_ANON_KEY=.+/m.test(content);
+        if (urlMatch && hasKey) {
+          return res.json({ connected: true, url: urlMatch[1].trim(), prefix });
+        }
+      }
+    }
+
+    // Method 2: Check for supabase usage in code (hardcoded URLs, imports, config)
+    const supabasePattern = /\.supabase\.co/;
+    const searchDirs = [projectPath];
+    // Also check one level of subdirectories
+    try {
+      const subs = fs.readdirSync(projectPath, { withFileTypes: true });
+      for (const s of subs) {
+        if (s.isDirectory() && !IGNORED_DIRS.has(s.name) && !s.name.startsWith('.')) {
+          searchDirs.push(path.join(projectPath, s.name));
+        }
+      }
+    } catch {}
+
+    for (const dir of searchDirs) {
+      let files;
+      try { files = fs.readdirSync(dir); } catch { continue; }
+      for (const f of files) {
+        if (!/\.(js|ts|jsx|tsx|html|json|env)$/.test(f)) continue;
+        const fp = path.join(dir, f);
+        try {
+          const stat = fs.statSync(fp);
+          if (stat.size > 500000) continue; // skip large files
+          const content = fs.readFileSync(fp, 'utf-8');
+          const urlMatch = content.match(/https?:\/\/[a-z0-9-]+\.supabase\.co/);
+          if (urlMatch) {
+            return res.json({ connected: true, url: urlMatch[0], prefix });
+          }
+        } catch {}
+      }
+      // Check subdirs (shared/, lib/, src/, etc.)
+      try {
+        const subFiles = fs.readdirSync(dir, { withFileTypes: true });
+        for (const sub of subFiles) {
+          if (!sub.isDirectory() || IGNORED_DIRS.has(sub.name)) continue;
+          let innerFiles;
+          try { innerFiles = fs.readdirSync(path.join(dir, sub.name)); } catch { continue; }
+          for (const f of innerFiles) {
+            if (!/\.(js|ts|jsx|tsx|html|json|env)$/.test(f)) continue;
+            const fp = path.join(dir, sub.name, f);
+            try {
+              const stat = fs.statSync(fp);
+              if (stat.size > 500000) continue;
+              const content = fs.readFileSync(fp, 'utf-8');
+              const urlMatch = content.match(/https?:\/\/[a-z0-9-]+\.supabase\.co/);
+              if (urlMatch) {
+                return res.json({ connected: true, url: urlMatch[0], prefix });
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+    }
+
+    res.json({ connected: false, prefix });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.post('/api/supabase/connect', (req, res) => {
-  const { projectPath, supabaseUrl, supabaseAnonKey } = req.body;
+  const { projectPath, supabaseUrl, supabaseAnonKey, supabaseServiceKey } = req.body;
   if (!projectPath || !supabaseUrl || !supabaseAnonKey) {
     return res.status(400).json({ error: 'projectPath, supabaseUrl, and supabaseAnonKey required' });
   }
@@ -533,6 +699,15 @@ app.post('/api/supabase/connect', (req, res) => {
       envContent = envContent.replace(new RegExp(`^${anonKeyKey}=.*`, 'm'), `${anonKeyKey}=${supabaseAnonKey}`);
     } else {
       envContent += `${anonKeyKey}=${supabaseAnonKey}\n`;
+    }
+    // Service role key (optional)
+    if (supabaseServiceKey) {
+      const serviceKeyKey = `${prefix}SUPABASE_SERVICE_ROLE_KEY`;
+      if (new RegExp(`^${serviceKeyKey}=.*`, 'm').test(envContent)) {
+        envContent = envContent.replace(new RegExp(`^${serviceKeyKey}=.*`, 'm'), `${serviceKeyKey}=${supabaseServiceKey}`);
+      } else {
+        envContent += `${serviceKeyKey}=${supabaseServiceKey}\n`;
+      }
     }
     fs.writeFileSync(envPath, envContent, 'utf-8');
 

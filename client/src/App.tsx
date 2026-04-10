@@ -8,7 +8,6 @@ import CodeViewer from './CodeViewer';
 interface Project {
   name: string;
   path: string;
-  gitConnected?: boolean;
 }
 
 const isEmbed = new URLSearchParams(window.location.search).has('embed');
@@ -60,7 +59,7 @@ function CommitRow({ commit, isCurrent, projectPath, restoring, onRestore, onVie
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontSize: 13, color: '#e4e4ef', fontWeight: isCurrent ? 600 : 400,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            lineHeight: 1.4,
           }}>
             {commit.message}
           </div>
@@ -195,11 +194,13 @@ function App() {
   const [showPageDropdown, setShowPageDropdown] = useState(false);
   const [supabaseUrl, setSupabaseUrl] = useState('');
   const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
+  const [supabaseServiceKey, setSupabaseServiceKey] = useState('');
   const [supabaseConnecting, setSupabaseConnecting] = useState(false);
   const [supabaseConnectMsg, setSupabaseConnectMsg] = useState('');
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [showIntegrations, setShowIntegrations] = useState(false);
   const [integrationSettings, setIntegrationSettings] = useState<string | null>(null);
+  const [showDocsMenu, setShowDocsMenu] = useState(false);
   const [gitPushing, setGitPushing] = useState(false);
   const [gitPushMsg, setGitPushMsg] = useState('');
   const [gitHistory, setGitHistory] = useState<{ hash: string; short: string; message: string; author: string; date: string }[]>([]);
@@ -216,6 +217,7 @@ function App() {
   const pageDropdownRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const integrationsRef = useRef<HTMLDivElement>(null);
+  const docsMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on click outside (including iframe clicks via blur)
   useEffect(() => {
@@ -229,12 +231,16 @@ function App() {
       if (showIntegrations && integrationsRef.current && !integrationsRef.current.contains(e.target as Node)) {
         setShowIntegrations(false);
       }
+      if (showDocsMenu && docsMenuRef.current && !docsMenuRef.current.contains(e.target as Node)) {
+        setShowDocsMenu(false);
+      }
     };
     const blurHandler = () => {
       // Window loses focus when iframe is clicked
       if (showPageDropdown) setShowPageDropdown(false);
       if (showProjectPicker) setShowProjectPicker(false);
       if (showIntegrations) setShowIntegrations(false);
+      if (showDocsMenu) setShowDocsMenu(false);
     };
     document.addEventListener('mousedown', handler);
     window.addEventListener('blur', blurHandler);
@@ -242,7 +248,7 @@ function App() {
       document.removeEventListener('mousedown', handler);
       window.removeEventListener('blur', blurHandler);
     };
-  }, [showPageDropdown, showProjectPicker, showIntegrations]);
+  }, [showPageDropdown, showProjectPicker, showIntegrations, showDocsMenu]);
 
   // Fetch projects
   useEffect(() => {
@@ -487,6 +493,15 @@ function App() {
       .finally(() => setClaudeMdLoading(false));
   }, [selectedProject]);
 
+  // Fetch git status when project changes (for integrations badge)
+  useEffect(() => {
+    if (!selectedProject) { setGitData(null); return; }
+    fetch(`/api/git/diff?path=${encodeURIComponent(selectedProject.path)}`)
+      .then(r => r.json())
+      .then(setGitData)
+      .catch(() => setGitData(null));
+  }, [selectedProject]);
+
   // Fetch git diff and history when tab is selected
   useEffect(() => {
     if (rightPanel !== 'git' || !selectedProject) return;
@@ -500,9 +515,9 @@ function App() {
       .catch(() => setGitHistory([]));
   }, [rightPanel, selectedProject]);
 
-  // Check Supabase status when settings panel opens
+  // Check Supabase status when project changes
   useEffect(() => {
-    if (integrationSettings !== 'supabase' || !selectedProject) return;
+    if (!selectedProject) { setSupabaseConnected(false); return; }
     fetch(`/api/supabase/status?path=${encodeURIComponent(selectedProject.path)}`)
       .then(r => r.json())
       .then(data => {
@@ -510,7 +525,7 @@ function App() {
         if (data.url) setSupabaseUrl(data.url);
       })
       .catch(() => setSupabaseConnected(false));
-  }, [integrationSettings, selectedProject]);
+  }, [selectedProject]);
 
   const saveClaudeMd = useCallback(async () => {
     if (!selectedProject) return;
@@ -697,21 +712,7 @@ function App() {
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
                         <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
                       </svg>
-                      <span style={{ flex: 1 }}>{p.name}</span>
-                      {p.gitConnected && (
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          padding: '2px 8px', borderRadius: 10,
-                          background: '#18181b', border: '1px solid #3f3f46',
-                          fontSize: 10, fontWeight: 600, color: '#4ade80',
-                          flexShrink: 0,
-                        }}>
-                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                            <path d="M3 8.5l3.5 3.5 6.5-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          Connected
-                        </span>
-                      )}
+                      {p.name}
                     </button>
                   ))}
                 </div>
@@ -923,6 +924,86 @@ function App() {
             </button>
           </div>
         )}
+
+        {/* Git actions bar */}
+        {selectedProject && (
+          <div style={{
+            padding: '10px 16px', borderTop: '1px solid #2a2a3a',
+            display: 'flex', gap: 8, flexShrink: 0,
+          }}>
+            <button
+              onClick={async () => {
+                if (!selectedProject) return;
+                const gitEnv = { projectPath: selectedProject.path };
+                try {
+                  await fetch('/api/git/commit-and-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectPath: selectedProject.path, commitOnly: true }),
+                  });
+                  termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Committed.\x1b[0m');
+                } catch {}
+              }}
+              style={{
+                flex: 1, padding: '8px', borderRadius: 8,
+                background: '#27272a', border: '1px solid #3f3f46',
+                color: '#a1a1aa', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                transition: 'border-color 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#e07a4b'; e.currentTarget.style.color = '#e4e4ef'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#3f3f46'; e.currentTarget.style.color = '#a1a1aa'; }}
+              title="Save a snapshot locally"
+            >
+              Commit
+            </button>
+            <button
+              onClick={async () => {
+                if (!selectedProject) return;
+                try {
+                  await fetch('/api/git/push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectPath: selectedProject.path }),
+                  });
+                  termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Pushed to GitHub.\x1b[0m');
+                } catch {}
+              }}
+              style={{
+                flex: 1, padding: '8px', borderRadius: 8,
+                background: '#27272a', border: '1px solid #3f3f46',
+                color: '#a1a1aa', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                transition: 'border-color 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#e07a4b'; e.currentTarget.style.color = '#e4e4ef'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#3f3f46'; e.currentTarget.style.color = '#a1a1aa'; }}
+              title="Upload commits to GitHub"
+            >
+              Push
+            </button>
+            <button
+              onClick={async () => {
+                if (!selectedProject) return;
+                try {
+                  await fetch('/api/git/commit-and-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectPath: selectedProject.path }),
+                  });
+                  termRef.current?.writeln('\r\n\x1b[38;2;224;122;75m  Committed & pushed to GitHub.\x1b[0m');
+                } catch {}
+              }}
+              style={{
+                flex: 1, padding: '8px', borderRadius: 8,
+                background: '#e07a4b', border: 'none',
+                color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                transition: 'opacity 0.15s',
+              }}
+              title="Commit and push in one step"
+            >
+              Commit & Push
+            </button>
+          </div>
+        )}
       </div>
 
       {/* RIGHT: Preview Panel — hidden in embed mode */}
@@ -1042,9 +1123,9 @@ function App() {
                   marginTop: 6, background: '#1c1c20', border: '1px solid #2a2a3a',
                   borderRadius: 12, zIndex: 100,
                   boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
-                  display: 'flex', overflow: 'hidden',
+                  overflow: 'visible',
                 }}>
-                  {/* Left: List */}
+                  {/* Integration list */}
                   <div style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', maxHeight: 420 }}>
                   <div style={{ padding: '16px 20px 12px' }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#e4e4ef' }}>Add integrations</div>
@@ -1053,16 +1134,16 @@ function App() {
                   <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px' }}>
                     {/* GitHub */}
                     <button
-                      onClick={() => { setRightPanel('git'); setShowIntegrations(false); }}
+                      onClick={() => setIntegrationSettings(integrationSettings === 'github' ? null : 'github')}
                       style={{
                         width: '100%', padding: '12px', borderRadius: 10,
-                        background: 'transparent', border: 'none',
+                        background: integrationSettings === 'github' ? '#222228' : 'transparent', border: 'none',
                         color: '#e4e4ef', cursor: 'pointer', textAlign: 'left',
                         display: 'flex', alignItems: 'center', gap: 12,
                         transition: 'background 0.15s',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#222228'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                      onMouseEnter={e => { if (integrationSettings !== 'github') e.currentTarget.style.background = '#222228'; }}
+                      onMouseLeave={e => { if (integrationSettings !== 'github') e.currentTarget.style.background = 'transparent'; }}
                     >
                       <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <svg width="22" height="22" viewBox="0 0 16 16" fill="#000">
@@ -1073,14 +1154,25 @@ function App() {
                         <div style={{ fontSize: 13, fontWeight: 600 }}>GitHub</div>
                         <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.4 }}>Push, pull, and manage your repository.</div>
                       </div>
-                      <div style={{
-                        padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, flexShrink: 0,
-                        background: rightPanel === 'git' ? '#e4e4ef' : 'transparent',
-                        color: rightPanel === 'git' ? '#18181b' : '#a1a1aa',
-                        border: rightPanel === 'git' ? 'none' : '1px solid #3f3f46',
-                      }}>
-                        {rightPanel === 'git' ? 'Open' : 'Connect'}
-                      </div>
+                      {gitData?.remote ? (
+                        <div style={{
+                          padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, flexShrink: 0,
+                          background: '#e4e4ef', color: '#18181b',
+                          display: 'flex', alignItems: 'center', gap: 5,
+                        }}>
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                            <path d="M3 8.5l3.5 3.5L13 4" stroke="#18181b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Connected
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, flexShrink: 0,
+                          background: 'transparent', color: '#a1a1aa', border: '1px solid #3f3f46',
+                        }}>
+                          Connect
+                        </div>
+                      )}
                     </button>
 
                     <div style={{ height: 1, background: '#2a2a3a', margin: '0 12px' }} />
@@ -1187,10 +1279,23 @@ function App() {
                   </div>
                   </div>
 
-                  {/* Right: Settings side panel */}
+                  {/* Settings side panel (pops out to the right) */}
                   {integrationSettings && (
-                    <div style={{ width: 360, borderLeft: '1px solid #2a2a3a', display: 'flex', flexDirection: 'column', maxHeight: 420 }}>
+                    <div style={{
+                      position: 'absolute', top: 0, left: '100%',
+                      width: 360, marginLeft: 6,
+                      background: '#1c1c20', border: '1px solid #2a2a3a',
+                      borderRadius: 12, boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
+                      display: 'flex', flexDirection: 'column', maxHeight: 420,
+                    }}>
                       <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #2a2a3a' }}>
+                        {integrationSettings === 'github' && (
+                          <div style={{ width: 28, height: 28, borderRadius: 6, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="#000">
+                              <path fillRule="evenodd" clipRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                            </svg>
+                          </div>
+                        )}
                         {integrationSettings === 'supabase' && (
                           <div style={{ width: 28, height: 28, borderRadius: 6, background: '#1c1c1c', border: '1px solid #2a2a3a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <svg width="16" height="16" viewBox="0 0 109 113" fill="none">
@@ -1213,8 +1318,17 @@ function App() {
                       {integrationSettings === 'supabase' && (
                         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 20px' }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: '#e4e4ef', marginBottom: 4 }}>Supabase</div>
-                          <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5, marginBottom: 16 }}>
-                            Create a project at supabase.com, then paste your credentials from Settings &gt; API.
+                          <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5, marginBottom: 6 }}>
+                            Supabase gives your app a database, user login, and file storage.
+                          </div>
+
+                          {/* Step-by-step instructions */}
+                          <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.6, marginBottom: 16, padding: '10px 12px', background: '#222226', borderRadius: 8, border: '1px solid #2a2a3a' }}>
+                            <div style={{ fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>Where to find these:</div>
+                            1. Go to <span style={{ color: '#3ECF8E' }}>supabase.com</span> and sign in<br />
+                            2. Open your project (or create one)<br />
+                            3. Go to <span style={{ color: '#e4e4ef' }}>Settings → API</span><br />
+                            4. Copy the <span style={{ color: '#e4e4ef' }}>Project URL</span> and <span style={{ color: '#e4e4ef' }}>anon public</span> key below
                           </div>
 
                           <div style={{ marginBottom: 14 }}>
@@ -1223,10 +1337,11 @@ function App() {
                               {supabaseConnected && supabaseUrl && (
                                 <span style={{ fontSize: 11, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 4" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                                  Verified
+                                  Connected
                                 </span>
                               )}
                             </div>
+                            <div style={{ fontSize: 10, color: '#555570', marginBottom: 4 }}>The URL of your Supabase project (starts with https://)</div>
                             <input
                               type="text" placeholder="https://xxxxx.supabase.co"
                               value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)}
@@ -1236,8 +1351,9 @@ function App() {
                             />
                           </div>
 
-                          <div style={{ marginBottom: 16 }}>
-                            <label style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 600, display: 'block', marginBottom: 6 }}>Anon Key</label>
+                          <div style={{ marginBottom: 14 }}>
+                            <label style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 600, display: 'block', marginBottom: 4 }}>Anon Key</label>
+                            <div style={{ fontSize: 10, color: '#555570', marginBottom: 4 }}>The public key — safe to use in your app's frontend code</div>
                             <input
                               type="password" placeholder="eyJhbG..."
                               value={supabaseAnonKey} onChange={e => setSupabaseAnonKey(e.target.value)}
@@ -1247,8 +1363,22 @@ function App() {
                             />
                           </div>
 
-                          <div style={{ fontSize: 11, color: '#555570', lineHeight: 1.5, marginBottom: 16, borderTop: '1px dashed #2a2a3a', paddingTop: 12 }}>
-                            Installs <code style={{ color: '#71717a' }}>@supabase/supabase-js</code>, creates <code style={{ color: '#71717a' }}>.env.local</code>, and scaffolds the client file.
+                          {/* Service Role Key — advanced */}
+                          <div style={{ marginBottom: 16 }}>
+                            <label style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                              Service Role Key <span style={{ fontWeight: 400, color: '#555570' }}>(optional)</span>
+                            </label>
+                            <div style={{ fontSize: 10, color: '#555570', marginBottom: 4 }}>
+                              Only needed if your app has a backend/server. This key has full database access — keep it secret.
+                              Found in the same Settings → API page, under "service_role".
+                            </div>
+                            <input
+                              type="password" placeholder="eyJhbG... (leave blank if unsure)"
+                              value={supabaseServiceKey || ''} onChange={e => setSupabaseServiceKey(e.target.value)}
+                              style={{ width: '100%', padding: '9px 12px', background: '#222226', border: '1px solid #2a2a3a', borderRadius: 8, color: '#e4e4ef', fontSize: 13, outline: 'none', fontFamily: "'SF Mono', Menlo, monospace", boxSizing: 'border-box' }}
+                              onFocus={e => { e.currentTarget.style.borderColor = '#3f3f46'; }}
+                              onBlur={e => { e.currentTarget.style.borderColor = '#2a2a3a'; }}
+                            />
                           </div>
 
                           <button
@@ -1257,7 +1387,7 @@ function App() {
                               setSupabaseConnecting(true); setSupabaseConnectMsg('');
                               fetch('/api/supabase/connect', {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ projectPath: selectedProject.path, supabaseUrl, supabaseAnonKey }),
+                                body: JSON.stringify({ projectPath: selectedProject.path, supabaseUrl, supabaseAnonKey, supabaseServiceKey }),
                               })
                                 .then(r => r.json())
                                 .then(data => { if (data.error) setSupabaseConnectMsg(data.error); else { setSupabaseConnectMsg(data.message || 'Connected!'); setSupabaseConnected(true); } })
@@ -1280,6 +1410,111 @@ function App() {
                             <div style={{ fontSize: 12, textAlign: 'center', lineHeight: 1.5, marginTop: 10, color: supabaseConnectMsg.toLowerCase().includes('fail') || supabaseConnectMsg.toLowerCase().includes('error') ? '#f87171' : '#4ade80' }}>
                               {supabaseConnectMsg}
                             </div>
+                          )}
+                        </div>
+                      )}
+
+                      {integrationSettings === 'github' && (
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 20px' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#e4e4ef', marginBottom: 4 }}>GitHub</div>
+                          <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.5, marginBottom: 6 }}>
+                            GitHub saves your project's code online so you never lose it and can share it with others.
+                          </div>
+
+                          {gitData?.remote ? (
+                            <>
+                              <div style={{ marginBottom: 14 }}>
+                                <label style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 600, display: 'block', marginBottom: 6 }}>Repository</label>
+                                <div style={{
+                                  padding: '10px 12px', background: '#27272a', borderRadius: 8,
+                                  border: '1px solid #3f3f46',
+                                  fontSize: 12, color: '#e4e4ef',
+                                  fontFamily: "'SF Mono', Menlo, monospace",
+                                  display: 'flex', alignItems: 'center', gap: 8,
+                                  wordBreak: 'break-all',
+                                }}>
+                                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                    <path d="M3 8.5l3.5 3.5L13 4" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  {gitData.remote}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => { setRightPanel('git'); setShowIntegrations(false); setIntegrationSettings(null); }}
+                                style={{
+                                  width: '100%', padding: '10px', borderRadius: 8, border: 'none',
+                                  background: '#e4e4ef', color: '#18181b',
+                                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                }}
+                              >
+                                Open Git Panel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {/* Step-by-step instructions */}
+                              <div style={{ fontSize: 11, color: '#71717a', lineHeight: 1.6, marginBottom: 16, padding: '10px 12px', background: '#222226', borderRadius: 8, border: '1px solid #2a2a3a' }}>
+                                <div style={{ fontWeight: 600, color: '#a1a1aa', marginBottom: 4 }}>How to get a repository URL:</div>
+                                1. Go to <span style={{ color: '#e4e4ef' }}>github.com</span> and sign in<br />
+                                2. Click the <span style={{ color: '#e4e4ef' }}>+</span> button (top right) → <span style={{ color: '#e4e4ef' }}>New repository</span><br />
+                                3. Give it a name and click <span style={{ color: '#e4e4ef' }}>Create repository</span><br />
+                                4. Copy the URL from the page (ends in .git)
+                              </div>
+
+                              <div style={{ marginBottom: 14 }}>
+                                <label style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 600, display: 'block', marginBottom: 4 }}>Repository URL</label>
+                                <div style={{ fontSize: 10, color: '#555570', marginBottom: 4 }}>Paste the URL of your GitHub repository here</div>
+                                <input
+                                  type="text"
+                                  id="github-repo-url"
+                                  name="github-repo-url"
+                                  placeholder="https://github.com/you/repo.git"
+                                  value={gitRepoUrl}
+                                  onChange={e => setGitRepoUrl(e.target.value)}
+                                  style={{
+                                    width: '100%', padding: '10px 12px', background: '#27272a',
+                                    border: '1px solid #3f3f46', borderRadius: 8,
+                                    color: '#e4e4ef', fontSize: 12, outline: 'none',
+                                    fontFamily: "'SF Mono', Menlo, monospace",
+                                  }}
+                                />
+                              </div>
+                              <button
+                                onClick={() => {
+                                  if (!gitRepoUrl || !selectedProject || gitConnecting) return;
+                                  setGitConnecting(true); setGitConnectMsg('');
+                                  fetch('/api/git/connect', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ projectPath: selectedProject.path, repoUrl: gitRepoUrl }),
+                                  }).then(r => r.json()).then(data => {
+                                    if (data.error) setGitConnectMsg(data.error);
+                                    else { setGitConnectMsg(data.message || 'Connected!'); setGitRepoUrl(''); }
+                                    fetch(`/api/git/diff?path=${encodeURIComponent(selectedProject.path)}`)
+                                      .then(r => r.json()).then(setGitData).catch(() => {});
+                                  }).catch(() => setGitConnectMsg('Connection failed'))
+                                    .finally(() => setGitConnecting(false));
+                                }}
+                                disabled={!gitRepoUrl || gitConnecting}
+                                style={{
+                                  width: '100%', padding: '10px', borderRadius: 8, border: 'none',
+                                  background: gitRepoUrl ? '#e4e4ef' : '#3f3f46',
+                                  color: gitRepoUrl ? '#18181b' : '#71717a',
+                                  fontSize: 13, fontWeight: 600,
+                                  cursor: gitRepoUrl && !gitConnecting ? 'pointer' : 'not-allowed',
+                                }}
+                              >
+                                {gitConnecting ? 'Connecting...' : 'Connect'}
+                              </button>
+                              {gitConnectMsg && (
+                                <div style={{
+                                  fontSize: 12, textAlign: 'center', lineHeight: 1.5, marginTop: 10,
+                                  color: gitConnectMsg.toLowerCase().includes('fail') || gitConnectMsg.toLowerCase().includes('error') ? '#f87171' : '#4ade80',
+                                }}>
+                                  {gitConnectMsg}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
@@ -1394,6 +1629,105 @@ function App() {
               <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+
+          {/* Help / Docs dropdown */}
+          <div ref={docsMenuRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowDocsMenu(v => !v)}
+              style={{
+                width: 34, height: 34, borderRadius: 8,
+                background: showDocsMenu ? '#e07a4b' : '#27272a', border: 'none',
+                color: showDocsMenu ? '#fff' : '#71717a', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              title="Help & Docs"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M1 3c1.5-1 3.5-1 5 0v10c-1.5-1-3.5-1-5 0V3z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M15 3c-1.5-1-3.5-1-5 0v10c1.5-1 3.5-1 5 0V3z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M8 3v10" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+            </button>
+            {showDocsMenu && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0,
+                marginTop: 6, background: '#1c1c20', border: '1px solid #2a2a3a',
+                borderRadius: 10, zIndex: 100,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                minWidth: 220, padding: '6px',
+              }}>
+                <button
+                  onClick={() => { window.open('/docs', '_blank'); setShowDocsMenu(false); }}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    background: 'transparent', border: 'none',
+                    color: '#e4e4ef', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#222228'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M1 3c1.5-1 3.5-1 5 0v10c-1.5-1-3.5-1-5 0V3zM15 3c-1.5-1-3.5-1-5 0v10c1.5-1 3.5-1 5 0V3z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M8 3v10" stroke="currentColor" strokeWidth="1.2" />
+                  </svg>
+                  Documentation
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 'auto', opacity: 0.4 }}>
+                    <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                <div style={{ height: 1, background: '#2a2a3a', margin: '2px 8px' }} />
+
+                <button
+                  onClick={() => { window.open('/docs#section-8', '_blank'); setShowDocsMenu(false); }}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    background: 'transparent', border: 'none',
+                    color: '#e4e4ef', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#222228'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
+                    <path d="M6 6.5a2 2 0 0 1 3.5 1.5c0 1-1.5 1.5-1.5 1.5M8 12h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  FAQ
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 'auto', opacity: 0.4 }}>
+                    <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                <div style={{ height: 1, background: '#2a2a3a', margin: '2px 8px' }} />
+
+                <button
+                  onClick={() => { window.open('https://github.com/AlexandreFlamant/clawable', '_blank'); setShowDocsMenu(false); }}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    background: 'transparent', border: 'none',
+                    color: '#e4e4ef', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#222228'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path fillRule="evenodd" clipRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                  </svg>
+                  GitHub
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ marginLeft: 'auto', opacity: 0.4 }}>
+                    <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Version preview banner */}
