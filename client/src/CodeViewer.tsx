@@ -97,11 +97,13 @@ function TreeNode({
   depth,
   selectedPath,
   onSelect,
+  changedFiles,
 }: {
   node: FileNode;
   depth: number;
   selectedPath: string | null;
   onSelect: (node: FileNode) => void;
+  changedFiles: Set<string>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isDir = node.type === 'directory';
@@ -142,6 +144,12 @@ function TreeNode({
         {!isDir && <span style={{ width: 10, flexShrink: 0 }} />}
         <FileIcon name={node.name} isDir={isDir} isOpen={expanded} />
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.name}</span>
+        {!isDir && changedFiles.has(node.path) && (
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%', background: '#e07a4b',
+            boxShadow: '0 0 4px #e07a4b', flexShrink: 0, marginLeft: 'auto',
+          }} title="Recently modified" />
+        )}
       </button>
       {isDir && expanded && node.children?.map(child => (
         <TreeNode
@@ -150,6 +158,7 @@ function TreeNode({
           depth={depth + 1}
           selectedPath={selectedPath}
           onSelect={onSelect}
+          changedFiles={changedFiles}
         />
       ))}
     </div>
@@ -163,6 +172,7 @@ export default function CodeViewer({ projectPath }: { projectPath: string }) {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const codeRef = useRef<HTMLElement>(null);
+  const [changedFiles, setChangedFiles] = useState<Set<string>>(new Set());
 
   // Fetch file tree
   const refreshTree = useCallback(() => {
@@ -187,11 +197,21 @@ export default function CodeViewer({ projectPath }: { projectPath: string }) {
           refreshTree();
         }
 
+        // Track changed file — add indicator dot
+        setChangedFiles(prev => new Set(prev).add(msg.path));
+        // Auto-clear indicator after 30 seconds
+        setTimeout(() => {
+          setChangedFiles(prev => {
+            const next = new Set(prev);
+            next.delete(msg.path);
+            return next;
+          });
+        }, 30000);
+
         // Refresh content of any open tab whose file changed
         setTabs(prev => {
           const idx = prev.findIndex(t => t.path === msg.path);
           if (idx === -1) return prev;
-          // Re-fetch file content
           fetch(`/api/files/read?path=${encodeURIComponent(msg.path)}`)
             .then(r => r.json())
             .then(data => {
@@ -324,6 +344,7 @@ export default function CodeViewer({ projectPath }: { projectPath: string }) {
               depth={0}
               selectedPath={activeTab}
               onSelect={openFile}
+              changedFiles={changedFiles}
             />
           ))}
           {tree.length === 0 && (

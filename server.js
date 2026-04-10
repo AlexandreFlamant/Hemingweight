@@ -44,10 +44,15 @@ app.get('/api/projects', (req, res) => {
   try {
     const dirs = fs.readdirSync(devDir, { withFileTypes: true })
       .filter(d => d.isDirectory())
-      .map(d => ({
-        name: d.name,
-        path: path.join(devDir, d.name)
-      }))
+      .map(d => {
+        const projPath = path.join(devDir, d.name);
+        let gitConnected = false;
+        try {
+          execSync('git remote get-url origin', { cwd: projPath, stdio: 'pipe' });
+          gitConnected = true;
+        } catch {}
+        return { name: d.name, path: projPath, gitConnected };
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
     res.json(dirs);
   } catch {
@@ -134,8 +139,543 @@ app.get('/api/files/read', (req, res) => {
   }
 });
 
+// ── File write endpoint (for CLAUDE.md editor) ────────────────────────────
+app.post('/api/files/write', (req, res) => {
+  const { path: filePath, content } = req.body;
+  if (!filePath || content === undefined) return res.status(400).json({ error: 'path and content required' });
+  const home = os.homedir();
+  if (!path.resolve(filePath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  try {
+    fs.writeFileSync(filePath, content, 'utf-8');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Create new project ─────────────────────────────────────────────────────
+app.post('/api/projects/create', (req, res) => {
+  const { name } = req.body;
+  if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
+    return res.status(400).json({ error: 'Project name must be alphanumeric (hyphens/underscores allowed)' });
+  }
+  const home = os.homedir();
+  const devDir = path.join(home, 'Developer');
+  const projectPath = path.join(devDir, name);
+
+  if (fs.existsSync(projectPath)) {
+    return res.status(409).json({ error: 'A project with this name already exists' });
+  }
+
+  try {
+    fs.mkdirSync(projectPath, { recursive: true });
+    // Initialize with a basic CLAUDE.md
+    fs.writeFileSync(path.join(projectPath, 'CLAUDE.md'), `# ${name}\n\nDescribe your project here. Claude Code reads this file to understand context.\n`);
+    res.json({ name, path: projectPath });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Git diff endpoint ──────────────────────────────────────────────────────
+app.get('/api/git/diff', (req, res) => {
+  const projectPath = req.query.path;
+  if (!projectPath) return res.status(400).json({ error: 'path required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const gitEnv = { ...process.env, PATH: FULL_PATH };
+  const safeExec = (cmd, opts = {}) => {
+    try { return execSync(cmd, { cwd: projectPath, stdio: 'pipe', env: gitEnv, ...opts }).toString(); }
+    catch { return ''; }
+  };
+
+  // Check if it's a git repo
+  try {
+    execSync('git rev-parse --is-inside-work-tree', { cwd: projectPath, stdio: 'pipe' });
+  } catch {
+    return res.json({ isGitRepo: false, files: [], diff: '', diffStaged: '', log: '', remote: '' });
+  }
+
+  const status = safeExec('git status --porcelain');
+  const diff = safeExec('git diff', { maxBuffer: 5 * 1024 * 1024 });
+  const diffStaged = safeExec('git diff --staged', { maxBuffer: 5 * 1024 * 1024 });
+  const log = safeExec('git log --oneline -10');
+  const remote = safeExec('git remote get-url origin').trim();
+
+  const files = status.trim().split('\n').filter(Boolean).map(line => {
+    const st = line.substring(0, 2).trim();
+    const file = line.substring(3);
+    return { status: st, file };
+  });
+
+  res.json({ files, diff, diffStaged, log, isGitRepo: true, remote });
+});
+
+// ── Git connect endpoint ───────────────────────────────────────────────────
+app.post('/api/git/connect', async (req, res) => {
+  const { projectPath, repoUrl } = req.body;
+  if (!projectPath || !repoUrl) return res.status(400).json({ error: 'projectPath and repoUrl required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const gitEnv = { ...process.env, PATH: FULL_PATH, HOME: home };
+  const run = (cmd) => execSync(cmd, { cwd: projectPath, stdio: 'pipe', env: gitEnv }).toString().trim();
+
+  try {
+    // Check if already a git repo
+    let isGitRepo = false;
+    try {
+      run('git rev-parse --is-inside-work-tree');
+      isGitRepo = true;
+    } catch {}
+
+    if (!isGitRepo) {
+      run('git init');
+      console.log(`Git initialized: ${projectPath}`);
+    }
+
+    // Check if remote already exists
+    let hasRemote = false;
+    try {
+      const remotes = run('git remote');
+      hasRemote = remotes.includes('origin');
+    } catch {}
+
+    if (hasRemote) {
+      // Update existing remote
+      run(`git remote set-url origin ${repoUrl}`);
+    } else {
+      run(`git remote add origin ${repoUrl}`);
+    }
+
+    // Check if there are any commits
+    let hasCommits = false;
+    try {
+      run('git rev-parse HEAD');
+      hasCommits = true;
+    } catch {}
+
+    if (!hasCommits) {
+      // Create initial commit with everything
+      run('git add -A');
+      try {
+        run('git commit -m "Initial commit"');
+      } catch {
+        // Nothing to commit (empty project)
+      }
+    }
+
+    // Try to push — set upstream
+    try {
+      run('git branch -M main');
+      run('git push -u origin main');
+      res.json({ ok: true, message: 'Connected and pushed to GitHub' });
+    } catch (err) {
+      // Push might fail if remote has content — try pull first
+      try {
+        run('git pull origin main --allow-unrelated-histories --no-edit');
+        run('git push -u origin main');
+        res.json({ ok: true, message: 'Connected, merged, and pushed to GitHub' });
+      } catch (pullErr) {
+        res.json({ ok: true, message: 'Connected to GitHub. You may need to push manually if there are conflicts.', warning: pullErr.message });
+      }
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Git push/commit endpoints ──────────────────────────────────────────────
+app.post('/api/git/push', (req, res) => {
+  const { projectPath } = req.body;
+  if (!projectPath) return res.status(400).json({ error: 'projectPath required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  try {
+    const output = execSync('git push', {
+      cwd: projectPath, stdio: 'pipe',
+      env: { ...process.env, PATH: FULL_PATH, HOME: home },
+    }).toString();
+    res.json({ ok: true, output });
+  } catch (err) {
+    res.status(500).json({ error: err.stderr ? err.stderr.toString() : err.message });
+  }
+});
+
+app.post('/api/git/commit-and-push', (req, res) => {
+  const { projectPath, message } = req.body;
+  if (!projectPath) return res.status(400).json({ error: 'projectPath required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const gitEnv = { ...process.env, PATH: FULL_PATH, HOME: home };
+  try {
+    execSync('git add -A', { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    const commitMsg = message || 'Update from Clawable';
+    try {
+      execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    } catch {
+      // Nothing to commit
+    }
+    const output = execSync('git push', { cwd: projectPath, stdio: 'pipe', env: gitEnv }).toString();
+    res.json({ ok: true, output });
+  } catch (err) {
+    res.status(500).json({ error: err.stderr ? err.stderr.toString() : err.message });
+  }
+});
+
+// ── Git history & restore ──────────────────────────────────────────────────
+app.get('/api/git/history', (req, res) => {
+  const projectPath = req.query.path;
+  if (!projectPath) return res.status(400).json({ error: 'path required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  try {
+    const log = execSync(
+      'git log --pretty=format:\'{"hash":"%H","short":"%h","message":"%s","author":"%an","date":"%ci"}\' -30',
+      { cwd: projectPath, stdio: 'pipe', env: { ...process.env, PATH: FULL_PATH } }
+    ).toString();
+    const commits = log.trim().split('\n').filter(Boolean).map(line => {
+      try { return JSON.parse(line); } catch { return null; }
+    }).filter(Boolean);
+    res.json({ commits });
+  } catch (err) {
+    res.json({ commits: [], error: err.message });
+  }
+});
+
+// Get diff for a specific commit
+app.get('/api/git/commit-diff', (req, res) => {
+  const projectPath = req.query.path;
+  const hash = req.query.hash;
+  if (!projectPath || !hash) return res.status(400).json({ error: 'path and hash required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  if (!/^[a-f0-9]+$/.test(hash)) return res.status(400).json({ error: 'Invalid hash' });
+
+  try {
+    const files = execSync(`git diff-tree --no-commit-id --name-status -r ${hash}`, {
+      cwd: projectPath, stdio: 'pipe', env: { ...process.env, PATH: FULL_PATH },
+    }).toString().trim().split('\n').filter(Boolean).map(line => {
+      const [status, ...parts] = line.split('\t');
+      return { status, file: parts.join('\t') };
+    });
+
+    const diff = execSync(`git show ${hash} --format="" --patch`, {
+      cwd: projectPath, stdio: 'pipe', env: { ...process.env, PATH: FULL_PATH },
+      maxBuffer: 5 * 1024 * 1024,
+    }).toString();
+
+    res.json({ files, diff });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/git/restore', (req, res) => {
+  const { projectPath, hash } = req.body;
+  if (!projectPath || !hash) return res.status(400).json({ error: 'projectPath and hash required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  // Validate hash is alphanumeric
+  if (!/^[a-f0-9]+$/.test(hash)) return res.status(400).json({ error: 'Invalid commit hash' });
+
+  const gitEnv = { ...process.env, PATH: FULL_PATH, HOME: home };
+  try {
+    // Restore files from that commit, then create a new commit
+    execSync(`git checkout ${hash} -- .`, { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    execSync('git add -A', { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    execSync(`git commit -m "Restore to ${hash.substring(0, 7)}"`, { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.stderr ? err.stderr.toString() : err.message });
+  }
+});
+
+// ── Git preview (temporary checkout for viewing) ──────────────────────────
+app.post('/api/git/preview-version', (req, res) => {
+  const { projectPath, hash } = req.body;
+  if (!projectPath || !hash) return res.status(400).json({ error: 'projectPath and hash required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) return res.status(403).json({ error: 'Access denied' });
+  if (!/^[a-f0-9]+$/.test(hash)) return res.status(400).json({ error: 'Invalid hash' });
+
+  const gitEnv = { ...process.env, PATH: FULL_PATH, HOME: home };
+  try {
+    // Stash any current changes
+    execSync('git stash --include-untracked', { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    // Checkout the old version's files
+    execSync(`git checkout ${hash} -- .`, { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.stderr ? err.stderr.toString() : err.message });
+  }
+});
+
+app.post('/api/git/preview-restore', (req, res) => {
+  const { projectPath } = req.body;
+  if (!projectPath) return res.status(400).json({ error: 'projectPath required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) return res.status(403).json({ error: 'Access denied' });
+
+  const gitEnv = { ...process.env, PATH: FULL_PATH, HOME: home };
+  try {
+    // Restore HEAD files
+    execSync('git checkout HEAD -- .', { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    // Clean any untracked files from the old version
+    execSync('git clean -fd', { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    // Restore stashed changes
+    try {
+      execSync('git stash pop', { cwd: projectPath, stdio: 'pipe', env: gitEnv });
+    } catch {
+      // No stash to pop — that's fine
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.stderr ? err.stderr.toString() : err.message });
+  }
+});
+
 // Track active sessions
 const sessions = new Map();
+
+// ── Supabase integration ──────────────────────────────────────────────
+
+function detectEnvPrefix(projectPath) {
+  const deps = {};
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(projectPath, 'package.json'), 'utf-8'));
+    Object.assign(deps, pkg.dependencies, pkg.devDependencies);
+  } catch {}
+  if (deps['next']) return 'NEXT_PUBLIC_';
+  if (deps['vite'] || deps['@vitejs/plugin-react'] || deps['@vitejs/plugin-vue']) return 'VITE_';
+  return '';
+}
+
+app.get('/api/supabase/status', (req, res) => {
+  const projectPath = req.query.path;
+  if (!projectPath) return res.status(400).json({ error: 'path required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  try {
+    const prefix = detectEnvPrefix(projectPath);
+    const envPath = path.join(projectPath, '.env.local');
+    if (!fs.existsSync(envPath)) return res.json({ connected: false, prefix });
+    const content = fs.readFileSync(envPath, 'utf-8');
+    const urlKey = `${prefix}SUPABASE_URL`;
+    const anonKey = `${prefix}SUPABASE_ANON_KEY`;
+    const urlMatch = content.match(new RegExp(`^${urlKey}=(.+)$`, 'm'));
+    const hasKey = new RegExp(`^${anonKey}=.+`, 'm').test(content);
+    res.json({
+      connected: !!urlMatch && hasKey,
+      url: urlMatch ? urlMatch[1].trim() : undefined,
+      prefix,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/supabase/connect', (req, res) => {
+  const { projectPath, supabaseUrl, supabaseAnonKey } = req.body;
+  if (!projectPath || !supabaseUrl || !supabaseAnonKey) {
+    return res.status(400).json({ error: 'projectPath, supabaseUrl, and supabaseAnonKey required' });
+  }
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const runEnv = { ...process.env, PATH: FULL_PATH, HOME: home };
+  const prefix = detectEnvPrefix(projectPath);
+  const urlKey = `${prefix}SUPABASE_URL`;
+  const anonKeyKey = `${prefix}SUPABASE_ANON_KEY`;
+
+  try {
+    // 1. Install @supabase/supabase-js
+    const hasYarn = fs.existsSync(path.join(projectPath, 'yarn.lock'));
+    const hasPnpm = fs.existsSync(path.join(projectPath, 'pnpm-lock.yaml'));
+    const installCmd = hasPnpm ? 'pnpm add @supabase/supabase-js'
+                     : hasYarn ? 'yarn add @supabase/supabase-js'
+                     : 'npm install @supabase/supabase-js';
+    execSync(installCmd, { cwd: projectPath, stdio: 'pipe', env: runEnv, timeout: 60000 });
+
+    // 2. Create/update .env.local
+    const envPath = path.join(projectPath, '.env.local');
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf-8');
+    }
+    if (new RegExp(`^${urlKey}=.*`, 'm').test(envContent)) {
+      envContent = envContent.replace(new RegExp(`^${urlKey}=.*`, 'm'), `${urlKey}=${supabaseUrl}`);
+    } else {
+      envContent += `${envContent && !envContent.endsWith('\n') ? '\n' : ''}${urlKey}=${supabaseUrl}\n`;
+    }
+    if (new RegExp(`^${anonKeyKey}=.*`, 'm').test(envContent)) {
+      envContent = envContent.replace(new RegExp(`^${anonKeyKey}=.*`, 'm'), `${anonKeyKey}=${supabaseAnonKey}`);
+    } else {
+      envContent += `${anonKeyKey}=${supabaseAnonKey}\n`;
+    }
+    fs.writeFileSync(envPath, envContent, 'utf-8');
+
+    // 3. Create lib/supabase client file
+    const hasSrcDir = fs.existsSync(path.join(projectPath, 'src'));
+    const libDir = hasSrcDir ? path.join(projectPath, 'src', 'lib') : path.join(projectPath, 'lib');
+    if (!fs.existsSync(libDir)) fs.mkdirSync(libDir, { recursive: true });
+    const hasTsConfig = fs.existsSync(path.join(projectPath, 'tsconfig.json'));
+    const ext = hasTsConfig ? 'ts' : 'js';
+    const supabaseFile = path.join(libDir, `supabase.${ext}`);
+
+    // Determine env access pattern
+    const envAccess = prefix.startsWith('VITE_')
+      ? `import.meta.env.${urlKey}`
+      : `process.env.${urlKey}`;
+    const envAccessKey = prefix.startsWith('VITE_')
+      ? `import.meta.env.${anonKeyKey}`
+      : `process.env.${anonKeyKey}`;
+
+    const clientCode = `import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = ${envAccess}${hasTsConfig ? '!' : ''}
+const supabaseAnonKey = ${envAccessKey}${hasTsConfig ? '!' : ''}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+`;
+    fs.writeFileSync(supabaseFile, clientCode, 'utf-8');
+
+    const relLib = hasSrcDir ? 'src/lib' : 'lib';
+    res.json({ ok: true, message: `Connected! SDK installed, .env.local updated, ${relLib}/supabase.${ext} created.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Page/route detection ──────────────────────────────────────────────
+function detectPages(projectPath) {
+  const pages = [];
+
+  // Next.js App Router: app/**/page.{tsx,jsx,js,ts}
+  function scanNextAppDir(dir, prefix) {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (e.name.startsWith('.') || IGNORED_DIRS.has(e.name)) continue;
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        // Skip route groups (parenthesized dirs) for the path, but recurse into them
+        const segment = e.name.startsWith('(') ? '' : '/' + e.name;
+        scanNextAppDir(full, prefix + segment);
+      } else if (/^page\.(tsx?|jsx?)$/.test(e.name)) {
+        pages.push({ path: prefix || '/', label: prefix || '/' });
+      }
+    }
+  }
+
+  // Next.js Pages Router: pages/**/*.{tsx,jsx,js,ts}
+  function scanNextPagesDir(dir, prefix) {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (e.name.startsWith('.') || e.name.startsWith('_') || IGNORED_DIRS.has(e.name)) continue;
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        scanNextPagesDir(full, prefix + '/' + e.name);
+      } else if (/\.(tsx?|jsx?)$/.test(e.name) && !e.name.startsWith('_')) {
+        const name = e.name.replace(/\.(tsx?|jsx?)$/, '');
+        const route = name === 'index' ? (prefix || '/') : prefix + '/' + name;
+        pages.push({ path: route, label: route });
+      }
+    }
+  }
+
+  // Static HTML files
+  function scanStaticHtml(dir, prefix, depth) {
+    if (depth > 3) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (e.name.startsWith('.') || IGNORED_DIRS.has(e.name)) continue;
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        scanStaticHtml(full, prefix + '/' + e.name, depth + 1);
+      } else if (e.name.endsWith('.html')) {
+        const name = e.name === 'index.html' ? (prefix || '/') : prefix + '/' + e.name.replace('.html', '');
+        pages.push({ path: name, label: name });
+      }
+    }
+  }
+
+  // Detect framework and scan accordingly
+  const pkgPath = path.join(projectPath, 'package.json');
+  let isNext = false;
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      isNext = !!deps['next'];
+    } catch {}
+  }
+
+  if (isNext) {
+    // Check App Router first
+    const appDir = path.join(projectPath, 'app');
+    const srcAppDir = path.join(projectPath, 'src', 'app');
+    if (fs.existsSync(appDir)) scanNextAppDir(appDir, '');
+    else if (fs.existsSync(srcAppDir)) scanNextAppDir(srcAppDir, '');
+
+    // Check Pages Router
+    const pagesDir = path.join(projectPath, 'pages');
+    const srcPagesDir = path.join(projectPath, 'src', 'pages');
+    if (fs.existsSync(pagesDir)) scanNextPagesDir(pagesDir, '');
+    else if (fs.existsSync(srcPagesDir)) scanNextPagesDir(srcPagesDir, '');
+  }
+
+  // If no framework pages found, check for static HTML
+  if (pages.length === 0) {
+    const staticCandidates = [projectPath, path.join(projectPath, 'public'), path.join(projectPath, 'site')];
+    for (const dir of staticCandidates) {
+      scanStaticHtml(dir, '', 0);
+      if (pages.length > 0) break;
+    }
+  }
+
+  // Dedupe and sort
+  const seen = new Set();
+  const unique = [];
+  for (const p of pages) {
+    if (!seen.has(p.path)) { seen.add(p.path); unique.push(p); }
+  }
+  unique.sort((a, b) => a.path.localeCompare(b.path));
+  return unique;
+}
+
+app.get('/api/pages', (req, res) => {
+  const projectPath = req.query.path;
+  if (!projectPath) return res.status(400).json({ error: 'path required' });
+  const home = os.homedir();
+  if (!path.resolve(projectPath).startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  res.json(detectPages(projectPath));
+});
 
 // ── Preview system ─────────────────────────────────────────────────────────
 // All preview traffic is proxied through /preview/ on the Clawable server.
