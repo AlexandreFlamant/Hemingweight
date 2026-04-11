@@ -513,6 +513,19 @@
       word-break: break-all;
     }
 
+    .code-block--prompt {
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .code-block--prompt code {
+      white-space: pre-wrap;
+      word-break: normal;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: #a1a1aa;
+    }
+
     .btn-download {
       display: inline-block;
       background: #e07a4b;
@@ -961,67 +974,66 @@
   <!-- INSTALL -->
   <section class="install" id="install">
     <p class="section-label">Get started</p>
-    <h2 class="section-title">Install Clawable in 5 minutes</h2>
+    <h2 class="section-title">3 steps. 5 minutes. You're building.</h2>
     <div class="steps">
 
       <div class="step">
         <div class="step-number">1</div>
         <div class="step-content">
-          <h3>Open Terminal</h3>
-          <p>Press <code class="inline">Cmd + Space</code> to open Spotlight, type <code class="inline">Terminal</code>, and press Enter.</p>
+          <h3>Install Claude Code</h3>
+          <p>Clawable runs on Claude Code, Anthropic's AI coding agent. You'll need a <a href="https://claude.ai" target="_blank" style="color:#e07a4b;">Claude account</a> (Max or API key).</p>
+          <p style="margin-top:12px;">Open Terminal (<code class="inline">Cmd + Space</code> &rarr; type <code class="inline">Terminal</code> &rarr; Enter) and run:</p>
+          <div class="code-block">
+            <code id="install-cmd-claude">npm install -g @anthropic-ai/claude-code</code>
+            <button class="copy-btn" onclick="copyClaudeCmd()">Copy</button>
+          </div>
+          <p style="margin-top:10px;color:#71717a;font-size:0.85rem;">Don't have npm? <a href="https://nodejs.org" target="_blank" style="color:#e07a4b;">Install Node.js</a> first (it includes npm).</p>
         </div>
       </div>
 
       <div class="step">
         <div class="step-number">2</div>
         <div class="step-content">
-          <h3>Run the installer</h3>
-          <div class="install-tabs">
-            <button class="install-tab active" onclick="switchInstallTab('auto', this)">One-line install</button>
-            <button class="install-tab" onclick="switchInstallTab('manual', this)">Manual (git clone)</button>
+          <h3>Let Claude install Clawable</h3>
+          <p>In Terminal, type <code class="inline">claude</code> and press Enter to start Claude Code. Once it's running, paste this prompt:</p>
+          <div class="code-block code-block--prompt">
+            <code id="install-cmd">Install Clawable on this machine. Here's exactly what to do:
+
+1. Check prerequisites: make sure node (v18+), python3, and git are available. If anything is missing, install it via Homebrew (install Homebrew first if needed on macOS).
+
+2. Clone the repo: if ~/Developer/clawable exists, cd into it and run "git pull". Otherwise run "git clone https://github.com/AlexandreFlamant/clawable.git ~/Developer/clawable". Create ~/Developer if it doesn't exist.
+
+3. Install dependencies: run "npm install --production" in ~/Developer/clawable, then "npm install" in ~/Developer/clawable/client.
+
+4. Build the client: run "npm run build" in ~/Developer/clawable/client. Verify that ~/Developer/clawable/client/dist/index.html exists after.
+
+5. Fix the Claude CLI path: in ~/Developer/clawable/server.js, find the line that says "const claudeArgs = ['/opt/homebrew/bin/claude']" and replace the hardcoded path with the actual path to claude on this system (run "which claude" to find it).
+
+6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh. Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
+
+7. Fix the extension ID: the native messaging manifest you just wrote has a hardcoded allowed_origins with a specific extension ID. Change the allowed_origins to: ["chrome-extension://*/"]
+
+8. Make the host script executable: run "chmod +x ~/Developer/clawable/native-host/clawable-host.sh"
+
+When everything is done, tell me to open Chrome, go to chrome://extensions, enable Developer mode (top right toggle), click Load unpacked, and select ~/Developer/clawable/extension.</code>
+            <button class="copy-btn" onclick="copyCommand()">Copy</button>
           </div>
-          <div id="install-auto">
-            <p>Copy and paste this command into Terminal, then press Enter. It installs everything automatically.</p>
-            <div class="code-block">
-              <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash</code>
-              <button class="copy-btn" onclick="copyCommand()">Copy</button>
-            </div>
-          </div>
-          <div id="install-manual" style="display:none;">
-            <p>If you already have Node.js, Python 3, Git, and Claude Code installed:</p>
-            <div class="code-block">
-              <code id="install-cmd-manual">git clone https://github.com/AlexandreFlamant/clawable.git
-cd clawable
-./install.sh</code>
-              <button class="copy-btn" onclick="copyManualCommand()">Copy</button>
-            </div>
-          </div>
+          <p style="margin-top:10px;color:#71717a;font-size:0.85rem;">Claude will check your system, install anything missing, and set everything up. Just approve the commands it runs.</p>
         </div>
       </div>
 
       <div class="step">
         <div class="step-number">3</div>
         <div class="step-content">
-          <h3>Install the Chrome extension</h3>
-          <p>Download the extension, unzip it, then load it into Chrome.</p>
-          <a href="https://github.com/AlexandreFlamant/clawable/releases/latest/download/clawable-extension.zip" class="btn-download" download>Download Chrome Extension</a>
-          <p style="margin-top: 16px;">Then open Chrome and go to <code class="inline">chrome://extensions</code>, enable <strong>Developer Mode</strong> (top right toggle), click <strong>Load Unpacked</strong>, and select the unzipped folder.</p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-number">4</div>
-        <div class="step-content">
-          <h3>Sign in to Claude</h3>
-          <p>Click the Clawable extension icon in your Chrome toolbar. On first launch, you'll be prompted to sign in to your Claude account.</p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-number">5</div>
-        <div class="step-content">
-          <h3>Start building</h3>
-          <p>Type what you want to build and hit Enter. That's it.</p>
+          <h3>Load the Chrome extension</h3>
+          <p>Once Claude finishes, open Chrome and follow these steps:</p>
+          <ol style="color:#a1a1aa;font-size:0.95rem;line-height:1.8;padding-left:20px;margin-top:12px;">
+            <li>Go to <code class="inline">chrome://extensions</code></li>
+            <li>Enable <strong style="color:#e4e4ef;">Developer mode</strong> (top right toggle)</li>
+            <li>Click <strong style="color:#e4e4ef;">Load unpacked</strong></li>
+            <li>Select the folder <code class="inline">~/Developer/clawable/extension</code></li>
+            <li>Click the Clawable icon in your toolbar &mdash; start building</li>
+          </ol>
         </div>
       </div>
 
@@ -1122,29 +1134,22 @@ cd clawable
   </footer>
 
   <script>
+    function copyClaudeCmd() {
+      var text = document.getElementById('install-cmd-claude').textContent;
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('install-cmd-claude').parentElement.querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+
     function copyCommand() {
       var text = document.getElementById('install-cmd').textContent;
       navigator.clipboard.writeText(text).then(function() {
-        var btn = document.getElementById('install-auto').querySelector('.copy-btn');
+        var btn = document.getElementById('install-cmd').parentElement.querySelector('.copy-btn');
         btn.textContent = 'Copied!';
         setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
       });
-    }
-
-    function copyManualCommand() {
-      var text = document.getElementById('install-cmd-manual').textContent;
-      navigator.clipboard.writeText(text).then(function() {
-        var btn = document.getElementById('install-manual').querySelector('.copy-btn');
-        btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
-      });
-    }
-
-    function switchInstallTab(tab, btn) {
-      document.getElementById('install-auto').style.display = tab === 'auto' ? 'block' : 'none';
-      document.getElementById('install-manual').style.display = tab === 'manual' ? 'block' : 'none';
-      document.querySelectorAll('.install-tab').forEach(function(t) { t.classList.remove('active'); });
-      btn.classList.add('active');
     }
 
     function toggleFaq(button) {
