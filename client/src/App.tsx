@@ -461,19 +461,6 @@ function App() {
     }
   }, [selectedProject]);
 
-  const stopPreview = useCallback(async () => {
-    if (!selectedProject) return;
-    setPreviewRunning(false);
-    setPreviewUrl('');
-    try {
-      await fetch(`/api/preview/stop`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectPath: selectedProject.path }),
-      });
-    } catch {}
-  }, [selectedProject]);
-
   // Fetch pages when project changes
   useEffect(() => {
     if (!selectedProject) { setPages([]); return; }

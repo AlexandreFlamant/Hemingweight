@@ -1333,6 +1333,6 @@ process.on('SIGTERM', () => { killAllPreviews(); process.exit(0); });
 process.on('SIGINT', () => { killAllPreviews(); process.exit(0); });
 
 const PORT = process.env.PORT || 3456;
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`Clawable running at http://localhost:${PORT}`);
 });
