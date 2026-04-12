@@ -869,14 +869,24 @@ proxy.on('error', (err, req, res) => {
   }
 });
 
-function findFreePort(startPort) {
+function isPortFree(port) {
   return new Promise((resolve) => {
     const srv = require('net').createServer();
-    srv.listen(startPort, '127.0.0.1', () => {
-      const port = srv.address().port;
-      srv.close(() => resolve(port));
+    srv.listen(port, '127.0.0.1', () => {
+      srv.close(() => resolve(true));
     });
-    srv.on('error', () => resolve(findFreePort(startPort + 1)));
+    srv.on('error', () => resolve(false));
+  });
+}
+
+function findFreePort(startPort) {
+  return new Promise(async (resolve) => {
+    // Try the default port first for predictable URLs (e.g. OAuth redirects)
+    if (await isPortFree(startPort)) return resolve(startPort);
+    // Fall back to next available port
+    let port = startPort + 1;
+    while (!(await isPortFree(port))) port++;
+    resolve(port);
   });
 }
 
