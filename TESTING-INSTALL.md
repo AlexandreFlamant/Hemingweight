@@ -64,13 +64,24 @@ Install Clawable on this machine. Here's exactly what to do:
 
 4. Build the client: run "npm run build" in ~/Developer/clawable/client. Verify that ~/Developer/clawable/client/dist/index.html exists after.
 
-5. Fix the Claude CLI path: in ~/Developer/clawable/server.js, find the line that says "const claudeArgs = ['/opt/homebrew/bin/claude']" and replace the hardcoded path with the actual path to claude on this system (run "which claude" to find it).
+5. Compute the Chrome extension ID: Chrome computes the extension ID for unpacked extensions from the absolute path to the extension directory. Use python3 to compute it — take the absolute path to ~/Developer/clawable/extension (expand ~ to the real home directory), encode it as UTF-16LE, SHA-256 hash it, take the first 32 hex characters, and map each hex digit (0-f) to a letter (a-p). Here's the command:
 
-6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh. Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
+   python3 -c "
+   import hashlib, os
+   path = os.path.expanduser('~/Developer/clawable/extension')
+   digest = hashlib.sha256(path.encode('utf-16-le')).hexdigest()[:32]
+   ext_id = ''.join(chr(ord('a') + int(c, 16)) for c in digest)
+   print(ext_id)
+   "
 
-7. Fix the extension ID: the native messaging manifest you just wrote has a hardcoded allowed_origins with a specific extension ID. Change the allowed_origins to: ["chrome-extension://*/"]
+   Save the output — this is the extension ID you'll use in the next step.
 
-8. Make the host script executable: run "chmod +x ~/Developer/clawable/native-host/clawable-host.sh"
+6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Make two replacements:
+   - Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh.
+   - Replace the entire allowed_origins array with ["chrome-extension://COMPUTED_ID/"], using the extension ID you computed in step 5.
+   Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
+
+7. Make the host script executable: run "chmod +x ~/Developer/clawable/native-host/clawable-host.sh"
 
 When everything is done, tell me to open Chrome, go to chrome://extensions, enable Developer mode (top right toggle), click Load unpacked, and select ~/Developer/clawable/extension.
 ```
@@ -107,10 +118,9 @@ Watch what Claude does. Approve each command it asks to run. Note any errors.
 - [ ] Did `npm install --production` succeed in the root?
 - [ ] Did `npm install` succeed in the client?
 - [ ] Did `npm run build` succeed in the client?
-- [ ] Did Claude find the correct path for `which claude`?
-- [ ] Did Claude correctly update server.js with the right claude path?
+- [ ] Did Claude compute the extension ID from the path using python3?
 - [ ] Did Claude create the native messaging manifest?
-- [ ] Did Claude set allowed_origins to `["chrome-extension://*/"]`?
+- [ ] Did Claude set allowed_origins to `["chrome-extension://COMPUTED_ID/"]` (not a wildcard, not a hardcoded ID)?
 - [ ] Did Claude make clawable-host.sh executable?
 
 ### During Chrome extension load (Step 4):
@@ -204,7 +214,7 @@ cd ~/Developer/clawable && node server.js
 cat ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json
 
 # Verify the host script path in the manifest points to a real file
-# Verify allowed_origins contains ["chrome-extension://*/"]
+# Verify allowed_origins contains the computed extension ID (not a wildcard)
 ```
 
 **Claude Code won't start in the browser terminal:**

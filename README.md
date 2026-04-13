@@ -14,7 +14,44 @@ If you're setting up from scratch, this single command installs everything you n
 curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
 ```
 
-### Option B: Manual Install (git clone)
+### Option B: Install via Claude Code
+
+If you have Claude Code running, paste this prompt and Claude will handle everything — dependencies, build, native messaging, and extension ID:
+
+```
+Install Clawable on this machine. Here's exactly what to do:
+
+1. Check prerequisites: make sure node (v18+), python3, and git are available. If anything is missing, install it via Homebrew (install Homebrew first if needed on macOS).
+
+2. Clone the repo: if ~/Developer/clawable exists, cd into it and run "git pull". Otherwise run "git clone https://github.com/AlexandreFlamant/clawable.git ~/Developer/clawable". Create ~/Developer if it doesn't exist.
+
+3. Install dependencies: run "npm install --production" in ~/Developer/clawable, then "npm install" in ~/Developer/clawable/client.
+
+4. Build the client: run "npm run build" in ~/Developer/clawable/client. Verify that ~/Developer/clawable/client/dist/index.html exists after.
+
+5. Compute the Chrome extension ID: Chrome computes the extension ID for unpacked extensions from the absolute path to the extension directory. Use python3 to compute it — take the absolute path to ~/Developer/clawable/extension (expand ~ to the real home directory), encode it as UTF-16LE, SHA-256 hash it, take the first 32 hex characters, and map each hex digit (0-f) to a letter (a-p). Here's the command:
+
+   python3 -c "
+   import hashlib, os
+   path = os.path.expanduser('~/Developer/clawable/extension')
+   digest = hashlib.sha256(path.encode('utf-16-le')).hexdigest()[:32]
+   ext_id = ''.join(chr(ord('a') + int(c, 16)) for c in digest)
+   print(ext_id)
+   "
+
+   Save the output — this is the extension ID you'll use in the next step.
+
+6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Make two replacements:
+   - Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh.
+   - Replace the entire allowed_origins array with ["chrome-extension://COMPUTED_ID/"], using the extension ID you computed in step 5.
+   Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
+
+7. Make the host script executable: run "chmod +x ~/Developer/clawable/native-host/clawable-host.sh"
+
+When everything is done, tell me to open Chrome, go to chrome://extensions, enable Developer mode (top right toggle), click Load unpacked, and select ~/Developer/clawable/extension.
+```
+
+### Option C: Manual Install (git clone)
 
 If you already have Node.js, Python 3, Git, and Claude Code installed:
 
