@@ -27,6 +27,28 @@ app.use(express.json());
 
 const PTY_BRIDGE = path.join(__dirname, 'pty-bridge.py');
 
+// ── User config (persisted in ~/.clawable/config.json) ─────────────────────
+const CONFIG_DIR = path.join(os.homedir(), '.clawable');
+const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+
+function readConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function writeConfig(config) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+function getProjectsDir() {
+  const config = readConfig();
+  return config.projectsDir || path.join(os.homedir(), 'Developer');
+}
+
 // Ensure common binary paths are available (native host may launch with a minimal PATH)
 const FULL_PATH = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin']
   .concat((process.env.PATH || '').split(':'))
@@ -149,10 +171,50 @@ app.get('/docs', (req, res) => {
 </html>`);
 });
 
+// ── Settings endpoints ─────────────────────────────────────────────────────
+app.get('/api/settings', (req, res) => {
+  const config = readConfig();
+  const configured = fs.existsSync(CONFIG_FILE);
+  const dir = config.projectsDir || path.join(os.homedir(), 'Developer');
+  res.json({
+    projectsDir: dir,
+    projectsDirDisplay: dir.replace(os.homedir(), '~'),
+    configured,
+  });
+});
+
+app.post('/api/settings', (req, res) => {
+  const { projectsDir } = req.body;
+  if (!projectsDir || typeof projectsDir !== 'string') {
+    return res.status(400).json({ error: 'projectsDir is required' });
+  }
+  const resolved = projectsDir.startsWith('~')
+    ? path.join(os.homedir(), projectsDir.slice(1))
+    : path.resolve(projectsDir);
+
+  if (!resolved.startsWith(os.homedir())) {
+    return res.status(403).json({ error: 'Directory must be under your home folder' });
+  }
+
+  try {
+    fs.mkdirSync(resolved, { recursive: true });
+  } catch (err) {
+    return res.status(500).json({ error: `Cannot create directory: ${err.message}` });
+  }
+
+  const config = readConfig();
+  config.projectsDir = resolved;
+  writeConfig(config);
+  res.json({
+    projectsDir: resolved,
+    projectsDirDisplay: resolved.replace(os.homedir(), '~'),
+    configured: true,
+  });
+});
+
 // API to list recent projects (directories)
 app.get('/api/projects', (req, res) => {
-  const home = os.homedir();
-  const devDir = path.join(home, 'Developer');
+  const devDir = getProjectsDir();
   try {
     const dirs = fs.readdirSync(devDir, { withFileTypes: true })
       .filter(d => d.isDirectory())
@@ -268,8 +330,7 @@ app.post('/api/projects/create', (req, res) => {
   if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
     return res.status(400).json({ error: 'Project name must be alphanumeric (hyphens/underscores allowed)' });
   }
-  const home = os.homedir();
-  const devDir = path.join(home, 'Developer');
+  const devDir = getProjectsDir();
   const projectPath = path.join(devDir, name);
 
   if (fs.existsSync(projectPath)) {

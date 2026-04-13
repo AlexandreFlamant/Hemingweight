@@ -187,6 +187,12 @@ function App() {
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectError, setNewProjectError] = useState('');
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [configured, setConfigured] = useState(true);
+  const [projectsDir, setProjectsDir] = useState('~/Developer');
+  const [setupDir, setSetupDir] = useState('~/Developer');
+  const [setupError, setSetupError] = useState('');
+  const [setupSaving, setSetupSaving] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
   const errorCountRef = useRef(0);
   const [pages, setPages] = useState<{ path: string; label: string }[]>([]);
@@ -252,13 +258,29 @@ function App() {
     };
   }, [showPageDropdown, showProjectPicker, showIntegrations, showDocsMenu]);
 
-  // Fetch projects
+  // Fetch settings (first-launch detection)
   useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(data => {
+        setConfigured(data.configured);
+        if (data.projectsDirDisplay) {
+          setProjectsDir(data.projectsDirDisplay);
+          setSetupDir(data.projectsDirDisplay);
+        }
+        setSettingsLoaded(true);
+      })
+      .catch(() => setSettingsLoaded(true));
+  }, []);
+
+  // Fetch projects (only after setup is complete)
+  useEffect(() => {
+    if (!settingsLoaded || !configured) return;
     fetch('/api/projects')
       .then(r => r.json())
       .then(setProjects)
       .catch(() => {});
-  }, []);
+  }, [settingsLoaded, configured]);
 
   // Initialize terminal
   useEffect(() => {
@@ -532,6 +554,29 @@ function App() {
     }
   }, [selectedProject, claudeMdDraft]);
 
+  const saveSetup = useCallback(async () => {
+    setSetupError('');
+    setSetupSaving(true);
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectsDir: setupDir }),
+      });
+      const data = await resp.json();
+      if (data.error) {
+        setSetupError(data.error);
+        return;
+      }
+      setProjectsDir(data.projectsDirDisplay);
+      setConfigured(true);
+    } catch {
+      setSetupError('Failed to save settings');
+    } finally {
+      setSetupSaving(false);
+    }
+  }, [setupDir]);
+
   const createNewProject = useCallback(async () => {
     setNewProjectError('');
     try {
@@ -568,6 +613,58 @@ function App() {
     running: '#4ade80',
     exited: '#555570',
   }[status];
+
+  // First-launch setup screen
+  if (settingsLoaded && !configured) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: '#18181b',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 16,
+      }}>
+        <img src="/logo.png" alt="Clawable" style={{ width: 56, height: 56 }} />
+        <div style={{ fontSize: 18, fontWeight: 600, color: '#e4e4ef' }}>
+          Welcome to Clawable
+        </div>
+        <div style={{ fontSize: 13, color: '#71717a', textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
+          Choose a folder where your projects will be stored.
+          Each project you create will be a subfolder inside this directory.
+        </div>
+        <input
+          type="text"
+          value={setupDir}
+          onChange={e => setSetupDir(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && setupDir) saveSetup(); }}
+          autoFocus
+          style={{
+            width: 360, padding: '10px 14px', background: '#27272a',
+            border: '1px solid #3f3f46', borderRadius: 8,
+            color: '#e4e4ef', fontSize: 14, outline: 'none',
+            fontFamily: "'SF Mono', Menlo, monospace",
+          }}
+        />
+        <div style={{ fontSize: 11, color: '#555570' }}>
+          e.g. ~/Developer, ~/Projects, ~/Documents/code
+        </div>
+        {setupError && (
+          <div style={{ fontSize: 12, color: '#f87171' }}>{setupError}</div>
+        )}
+        <button
+          onClick={saveSetup}
+          disabled={!setupDir || setupSaving}
+          style={{
+            marginTop: 8, padding: '10px 32px', borderRadius: 8, border: 'none',
+            background: setupDir ? '#e07a4b' : '#3f3f46',
+            color: '#fff', fontSize: 14, fontWeight: 600,
+            cursor: setupDir ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {setupSaving ? 'Saving...' : 'Continue'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#09090b' }}>
@@ -2270,7 +2367,7 @@ function App() {
               }}
             />
             <div style={{ fontSize: 11, color: '#555570', marginTop: 6 }}>
-              Creates ~/Developer/{newProjectName || '...'}
+              Creates {projectsDir}/{newProjectName || '...'}
             </div>
             {newProjectError && (
               <div style={{ fontSize: 12, color: '#f87171', marginTop: 8 }}>{newProjectError}</div>
