@@ -57,6 +57,9 @@ sed -e "s|CLAWABLE_HOST_SH_PATH|$HOST_SCRIPT|g" \
 
 echo "  -> $CHROME_NM_DIR/$MANIFEST_NAME"
 
+# Step 4: Make host script executable
+chmod +x "$HOST_SCRIPT"
+
 # Done
 echo ""
 echo "Setup complete!"

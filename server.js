@@ -1216,7 +1216,8 @@ wss.on('connection', (ws) => {
 
         try {
           // Build claude command args
-          const claudeArgs = ['/opt/homebrew/bin/claude'];
+          const claudePath = execSync('which claude', { encoding: 'utf8' }).trim();
+          const claudeArgs = [claudePath];
 
           // Use Python PTY bridge to get a real pseudo-terminal
           childProc = spawn('python3', [
