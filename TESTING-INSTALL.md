@@ -64,22 +64,19 @@ Install Clawable on this machine. Here's exactly what to do:
 
 4. Build the client: run "npm run build" in ~/Developer/clawable/client. Verify that ~/Developer/clawable/client/dist/index.html exists after.
 
-5. Compute the Chrome extension ID: Chrome computes the extension ID for unpacked extensions from the absolute path to the extension directory. Use python3 to compute it — take the absolute path to ~/Developer/clawable/extension (expand ~ to the real home directory), encode it as UTF-16LE, SHA-256 hash it, take the first 32 hex characters, and map each hex digit (0-f) to a letter (a-p). Here's the command:
+5. Compute the Chrome extension ID from the key in the extension manifest — do NOT use the file path. Run this command:
 
    python3 -c "
-   import hashlib, os
-   path = os.path.expanduser('~/Developer/clawable/extension')
-   digest = hashlib.sha256(path.encode('utf-16-le')).hexdigest()[:32]
-   ext_id = ''.join(chr(ord('a') + int(c, 16)) for c in digest)
-   print(ext_id)
+   import json, hashlib, base64, os
+   manifest = json.load(open(os.path.expanduser('~/Developer/clawable/extension/manifest.json')))
+   key_bytes = base64.b64decode(manifest['key'])
+   digest = hashlib.sha256(key_bytes).hexdigest()[:32]
+   print(''.join(chr(ord('a') + int(c, 16)) for c in digest))
    "
 
-   Save the output — this is the extension ID you'll use in the next step.
+   The result must be oppghhmjfjibmjjbpchmhheelfcnbboo. If it is not, stop and report the error.
 
-6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Make two replacements:
-   - Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh.
-   - Replace the entire allowed_origins array with ["chrome-extension://COMPUTED_ID/"], using the extension ID you computed in step 5.
-   Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
+6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh, and set allowed_origins to ["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]. Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
 
 7. Make the host script executable: run "chmod +x ~/Developer/clawable/native-host/clawable-host.sh"
 
@@ -118,9 +115,9 @@ Watch what Claude does. Approve each command it asks to run. Note any errors.
 - [ ] Did `npm install --production` succeed in the root?
 - [ ] Did `npm install` succeed in the client?
 - [ ] Did `npm run build` succeed in the client?
-- [ ] Did Claude compute the extension ID from the path using python3?
+- [ ] Did Claude compute the extension ID from the manifest key using python3?
 - [ ] Did Claude create the native messaging manifest?
-- [ ] Did Claude set allowed_origins to `["chrome-extension://COMPUTED_ID/"]` (not a wildcard, not a hardcoded ID)?
+- [ ] Did Claude set allowed_origins to `["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]`?
 - [ ] Did Claude make clawable-host.sh executable?
 
 ### During Chrome extension load (Step 4):
