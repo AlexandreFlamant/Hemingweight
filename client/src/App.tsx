@@ -217,6 +217,11 @@ function App() {
   const [historyCommits, setHistoryCommits] = useState<{ hash: string; short: string; message: string; author: string; date: string }[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [previewingVersion, setPreviewingVersion] = useState<{ hash: string; short: string; message: string } | null>(null);
+  const [showMainMenu, setShowMainMenu] = useState(false);
+  const [mainMenuTab, setMainMenuTab] = useState<'projects' | 'settings'>('projects');
+  const [settingsDir, setSettingsDir] = useState('');
+  const [settingsDirSaving, setSettingsDirSaving] = useState(false);
+  const [settingsDirMsg, setSettingsDirMsg] = useState('');
 
   const terminalRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -224,6 +229,7 @@ function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const pageDropdownRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
+  const mainMenuRef = useRef<HTMLDivElement>(null);
   const integrationsRef = useRef<HTMLDivElement>(null);
   const docsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -236,6 +242,9 @@ function App() {
       if (showProjectPicker && projectPickerRef.current && !projectPickerRef.current.contains(e.target as Node)) {
         setShowProjectPicker(false);
       }
+      if (showMainMenu && mainMenuRef.current && !mainMenuRef.current.contains(e.target as Node)) {
+        setShowMainMenu(false);
+      }
       if (showIntegrations && integrationsRef.current && !integrationsRef.current.contains(e.target as Node)) {
         setShowIntegrations(false);
       }
@@ -247,6 +256,7 @@ function App() {
       // Window loses focus when iframe is clicked
       if (showPageDropdown) setShowPageDropdown(false);
       if (showProjectPicker) setShowProjectPicker(false);
+      if (showMainMenu) setShowMainMenu(false);
       if (showIntegrations) setShowIntegrations(false);
       if (showDocsMenu) setShowDocsMenu(false);
     };
@@ -256,7 +266,7 @@ function App() {
       document.removeEventListener('mousedown', handler);
       window.removeEventListener('blur', blurHandler);
     };
-  }, [showPageDropdown, showProjectPicker, showIntegrations, showDocsMenu]);
+  }, [showPageDropdown, showProjectPicker, showMainMenu, showIntegrations, showDocsMenu]);
 
   // Fetch settings (first-launch detection)
   useEffect(() => {
@@ -577,6 +587,34 @@ function App() {
     }
   }, [setupDir]);
 
+  const saveSettingsDir = useCallback(async () => {
+    setSettingsDirSaving(true);
+    setSettingsDirMsg('');
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectsDir: settingsDir }),
+      });
+      const data = await resp.json();
+      if (data.error) {
+        setSettingsDirMsg(data.error);
+        return;
+      }
+      setProjectsDir(data.projectsDirDisplay);
+      setSettingsDirMsg('Saved');
+      // Refresh project list for new directory
+      const projResp = await fetch('/api/projects');
+      const projs = await projResp.json();
+      setProjects(projs);
+      setTimeout(() => setSettingsDirMsg(''), 2000);
+    } catch {
+      setSettingsDirMsg('Failed to save');
+    } finally {
+      setSettingsDirSaving(false);
+    }
+  }, [settingsDir]);
+
   const createNewProject = useCallback(async () => {
     setNewProjectError('');
     try {
@@ -689,121 +727,160 @@ function App() {
           gap: 12,
           flexShrink: 0,
         }}>
-          {/* Logo + wordmark — hide in embed mode since Chrome shows its own header */}
-          {!isEmbed && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <img src="/logo.png" alt="Clawable" style={{ width: 28, height: 28 }} />
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#e4e4ef', whiteSpace: 'nowrap' }}>Clawable</span>
-            </div>
-          )}
-
-          {/* Project dropdown */}
-          <div ref={projectPickerRef} style={{ position: 'relative', flex: 1 }}>
+          {/* Menu button + dropdown */}
+          <div ref={mainMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
-              onClick={() => setShowProjectPicker(!showProjectPicker)}
+              onClick={() => { setShowMainMenu(!showMainMenu); if (!showMainMenu) { setSettingsDir(projectsDir); setSettingsDirMsg(''); } }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 10px',
-                background: 'transparent',
-                border: 'none',
-                color: '#e4e4ef',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 8px', background: showMainMenu ? 'rgba(224,122,75,0.1)' : 'transparent',
+                border: 'none', borderRadius: 6, color: showMainMenu ? '#e07a4b' : '#e4e4ef',
+                cursor: 'pointer', transition: 'background 0.15s, color 0.15s',
               }}
+              onMouseEnter={e => { if (!showMainMenu) e.currentTarget.style.background = '#27272a'; }}
+              onMouseLeave={e => { if (!showMainMenu) e.currentTarget.style.background = 'transparent'; }}
             >
-              <span>{selectedProject?.name || 'Select project'}</span>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showProjectPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              {!isEmbed && <img src="/logo.png" alt="Clawable" style={{ width: 24, height: 24 }} />}
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
 
-            {showProjectPicker && (
+            {showMainMenu && (
               <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                marginTop: 4,
-                background: '#27272a',
-                border: '1px solid #3f3f46',
-                borderRadius: 8,
-                overflow: 'hidden',
-                zIndex: 100,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                maxHeight: 360,
-                display: 'flex',
-                flexDirection: 'column',
-                minWidth: 280,
+                position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                background: '#27272a', border: '1px solid #3f3f46', borderRadius: 8,
+                overflow: 'hidden', zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                width: 300, display: 'flex', flexDirection: 'column',
               }}>
-                <input
-                  type="text"
-                  id="project-search"
-                  name="project-search"
-                  placeholder="Search projects..."
-                  value={projectSearch}
-                  onChange={e => setProjectSearch(e.target.value)}
-                  autoFocus
-                  style={{
-                    padding: '10px 14px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: '1px solid #3f3f46',
-                    color: '#e4e4ef',
-                    fontSize: 13,
-                    outline: 'none',
-                  }}
-                />
-                <div style={{ overflowY: 'auto', maxHeight: 300 }}>
-                  {/* New Project button */}
-                  <button
-                    onClick={() => { setShowNewProject(true); setShowProjectPicker(false); }}
-                    style={{
-                      width: '100%', padding: '10px 14px',
-                      background: 'transparent', border: 'none', borderBottom: '1px solid #3f3f46',
-                      color: '#e07a4b', fontSize: 13, fontWeight: 600,
-                      cursor: 'pointer', textAlign: 'left',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#3f3f46'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                      <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                    New Project
-                  </button>
-                  {filteredProjects.map(p => (
+                {/* Tabs */}
+                <div style={{ display: 'flex', borderBottom: '1px solid #3f3f46' }}>
+                  {(['projects', 'settings'] as const).map(tab => (
                     <button
-                      key={p.path}
-                      onClick={() => connectToProject(p)}
+                      key={tab}
+                      onClick={() => setMainMenuTab(tab)}
                       style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        background: selectedProject?.path === p.path ? 'rgba(224,122,75,0.1)' : 'transparent',
-                        border: 'none',
-                        color: selectedProject?.path === p.path ? '#e07a4b' : '#e4e4ef',
-                        fontSize: 13,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
+                        flex: 1, padding: '10px 0', background: 'transparent', border: 'none',
+                        borderBottom: mainMenuTab === tab ? '2px solid #e07a4b' : '2px solid transparent',
+                        color: mainMenuTab === tab ? '#e07a4b' : '#71717a',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        textTransform: 'uppercase', letterSpacing: '0.05em',
                       }}
-                      onMouseEnter={e => { if (selectedProject?.path !== p.path) e.currentTarget.style.background = '#3f3f46'; }}
-                      onMouseLeave={e => { if (selectedProject?.path !== p.path) e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
-                        <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
-                      </svg>
-                      {p.name}
+                      {tab}
                     </button>
                   ))}
                 </div>
+
+                {mainMenuTab === 'projects' && (
+                  <>
+                    <input
+                      type="text"
+                      id="project-search"
+                      name="project-search"
+                      placeholder="Search projects..."
+                      value={projectSearch}
+                      onChange={e => setProjectSearch(e.target.value)}
+                      autoFocus
+                      style={{
+                        padding: '10px 14px', background: 'transparent', border: 'none',
+                        borderBottom: '1px solid #3f3f46', color: '#e4e4ef', fontSize: 13, outline: 'none',
+                      }}
+                    />
+                    <div style={{ overflowY: 'auto', maxHeight: 300 }}>
+                      <button
+                        onClick={() => { setShowNewProject(true); setShowMainMenu(false); }}
+                        style={{
+                          width: '100%', padding: '10px 14px',
+                          background: 'transparent', border: 'none', borderBottom: '1px solid #3f3f46',
+                          color: '#e07a4b', fontSize: 13, fontWeight: 600,
+                          cursor: 'pointer', textAlign: 'left',
+                          display: 'flex', alignItems: 'center', gap: 8,
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#3f3f46'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                          <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                        New Project
+                      </button>
+                      {filteredProjects.map(p => (
+                        <button
+                          key={p.path}
+                          onClick={() => { connectToProject(p); setShowMainMenu(false); }}
+                          style={{
+                            width: '100%', padding: '10px 14px',
+                            background: selectedProject?.path === p.path ? 'rgba(224,122,75,0.1)' : 'transparent',
+                            border: 'none',
+                            color: selectedProject?.path === p.path ? '#e07a4b' : '#e4e4ef',
+                            fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                          }}
+                          onMouseEnter={e => { if (selectedProject?.path !== p.path) e.currentTarget.style.background = '#3f3f46'; }}
+                          onMouseLeave={e => { if (selectedProject?.path !== p.path) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
+                            <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
+                          </svg>
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {mainMenuTab === 'settings' && (
+                  <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Projects Root Path
+                      </label>
+                      <div style={{ fontSize: 11, color: '#555570', marginTop: 2, marginBottom: 6 }}>
+                        New projects will be created inside this folder.
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input
+                          type="text"
+                          value={settingsDir}
+                          onChange={e => { setSettingsDir(e.target.value); setSettingsDirMsg(''); }}
+                          onKeyDown={e => { if (e.key === 'Enter' && settingsDir) saveSettingsDir(); }}
+                          style={{
+                            flex: 1, padding: '8px 10px', background: '#1a1a1e',
+                            border: '1px solid #3f3f46', borderRadius: 6,
+                            color: '#e4e4ef', fontSize: 13, outline: 'none',
+                            fontFamily: "'SF Mono', Menlo, monospace",
+                          }}
+                        />
+                        <button
+                          onClick={saveSettingsDir}
+                          disabled={!settingsDir || settingsDirSaving || settingsDir === projectsDir}
+                          style={{
+                            padding: '8px 14px', borderRadius: 6, border: 'none',
+                            background: settingsDir && settingsDir !== projectsDir ? '#e07a4b' : '#3f3f46',
+                            color: '#fff', fontSize: 12, fontWeight: 600,
+                            cursor: settingsDir && settingsDir !== projectsDir ? 'pointer' : 'not-allowed',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {settingsDirSaving ? '...' : 'Save'}
+                        </button>
+                      </div>
+                      {settingsDirMsg && (
+                        <div style={{ fontSize: 11, marginTop: 4, color: settingsDirMsg === 'Saved' ? '#4ade80' : '#f87171' }}>
+                          {settingsDirMsg}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
+          </div>
+
+          {/* Current project name */}
+          <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#e4e4ef', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selectedProject?.name || 'Select project'}
           </div>
 
           {/* History button */}
