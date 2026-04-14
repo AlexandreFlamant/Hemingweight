@@ -1,6 +1,6 @@
 {
   "name": "clawable",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Claude Code in the browser — Lovable-style UI",
   "main": "server.js",
   "scripts": {

@@ -1216,7 +1216,16 @@ wss.on('connection', (ws) => {
 
         try {
           // Build claude command args
-          const claudePath = execSync('which claude', { encoding: 'utf8' }).trim();
+          let claudePath;
+          try {
+            claudePath = execSync('which claude', { encoding: 'utf8', env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin:' + (process.env.HOME || '') + '/.npm-global/bin:' + (process.env.HOME || '') + '/.local/bin' } }).trim();
+          } catch {
+            // Fallback: check common install locations
+            const { existsSync } = require('fs');
+            const candidates = ['/opt/homebrew/bin/claude', '/usr/local/bin/claude', (process.env.HOME || '') + '/.npm-global/bin/claude'];
+            claudePath = candidates.find(p => existsSync(p));
+            if (!claudePath) throw new Error('Claude CLI not found. Make sure "claude" is installed and on your PATH.');
+          }
           const claudeArgs = [claudePath];
 
           // Use Python PTY bridge to get a real pseudo-terminal
