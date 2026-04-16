@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-# Clawable Remote Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
+# Hemingweight Remote Installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash
 
-CLAWABLE_DIR="$HOME/Developer/clawable"
+HEMINGWEIGHT_DIR="$HOME/Developer/hemingweight"
 ORANGE='\033[38;2;224;122;75m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -12,7 +12,7 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 echo ""
-echo -e "${ORANGE}🟠 Clawable Installer${RESET}"
+echo -e "${ORANGE}🟠 Hemingweight Installer${RESET}"
 echo "====================="
 echo ""
 
@@ -78,37 +78,37 @@ else
   echo -e "${GREEN}✅ Claude Code found${RESET}"
 fi
 
-# --- Download/update Clawable ---
+# --- Download/update Hemingweight ---
 mkdir -p "$HOME/Developer"
 
-if [ -d "$CLAWABLE_DIR" ]; then
-  echo -e "${DIM}Updating Clawable...${RESET}"
-  cd "$CLAWABLE_DIR" && git pull --quiet
-  echo -e "${GREEN}✅ Clawable updated${RESET}"
+if [ -d "$HEMINGWEIGHT_DIR" ]; then
+  echo -e "${DIM}Updating Hemingweight...${RESET}"
+  cd "$HEMINGWEIGHT_DIR" && git pull --quiet
+  echo -e "${GREEN}✅ Hemingweight updated${RESET}"
 else
-  echo -e "${DIM}Downloading Clawable...${RESET}"
-  git clone --quiet https://github.com/AlexandreFlamant/clawable.git "$CLAWABLE_DIR"
-  echo -e "${GREEN}✅ Clawable downloaded${RESET}"
+  echo -e "${DIM}Downloading Hemingweight...${RESET}"
+  git clone --quiet https://github.com/AlexandreFlamant/hemingweight.git "$HEMINGWEIGHT_DIR"
+  echo -e "${GREEN}✅ Hemingweight downloaded${RESET}"
 fi
 
 # --- Install dependencies ---
 echo -e "${DIM}Installing dependencies...${RESET}"
-cd "$CLAWABLE_DIR" && npm install --production --quiet 2>/dev/null
-cd "$CLAWABLE_DIR/client" && npm install --quiet 2>/dev/null
+cd "$HEMINGWEIGHT_DIR" && npm install --production --quiet 2>/dev/null
+cd "$HEMINGWEIGHT_DIR/client" && npm install --quiet 2>/dev/null
 
 # --- Build client ---
 echo -e "${DIM}Building client...${RESET}"
-cd "$CLAWABLE_DIR/client" && npm run build --quiet 2>/dev/null
+cd "$HEMINGWEIGHT_DIR/client" && npm run build --quiet 2>/dev/null
 echo -e "${GREEN}✅ Dependencies installed & client built${RESET}"
 
 # --- Register Chrome native messaging host ---
 echo -e "${DIM}Registering Chrome extension...${RESET}"
-cd "$CLAWABLE_DIR" && bash install.sh 2>/dev/null
+cd "$HEMINGWEIGHT_DIR" && bash install.sh 2>/dev/null
 echo -e "${GREEN}✅ Chrome native messaging registered${RESET}"
 
 # --- Done ---
 echo ""
-echo -e "${GREEN}🎉 Clawable is installed!${RESET}"
+echo -e "${GREEN}🎉 Hemingweight is installed!${RESET}"
 echo ""
 echo "Next steps:"
 echo ""
@@ -116,8 +116,8 @@ echo "  1. Open Chrome"
 echo "  2. Go to chrome://extensions"
 echo "  3. Turn on \"Developer mode\" (top right toggle)"
 echo "  4. Click \"Load unpacked\""
-echo "  5. Select this folder: $CLAWABLE_DIR/extension"
-echo "  6. Click the Clawable extension icon and start building!"
+echo "  5. Select this folder: $HEMINGWEIGHT_DIR/extension"
+echo "  6. Click the Hemingweight extension icon and start building!"
 echo ""
-echo -e "${DIM}Clawable installed at: $CLAWABLE_DIR${RESET}"
+echo -e "${DIM}Hemingweight installed at: $HEMINGWEIGHT_DIR${RESET}"
 echo ""

@@ -1,0 +1,7 @@
+{
+  "name": "com.hemingweight.server",
+  "description": "Hemingweight — auto-start local server for Claude Code in the browser",
+  "path": "HEMINGWEIGHT_HOST_SH_PATH",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]
+}

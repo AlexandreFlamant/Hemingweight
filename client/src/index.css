@@ -62,7 +62,7 @@ body {
   50% { opacity: 0.6; }
 }
 
-/* highlight.js theme — dark, matching Clawable palette */
+/* highlight.js theme — dark, matching Hemingweight palette */
 .hljs-keyword, .hljs-built_in { color: #c792ea; }
 .hljs-type, .hljs-class .hljs-title { color: #ffcb6b; }
 .hljs-string, .hljs-template-variable { color: #c3e88d; }

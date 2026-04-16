@@ -2,7 +2,7 @@
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 
 const SERVER_URL = 'http://localhost:3456';
-const NATIVE_HOST = 'com.clawable.server';
+const NATIVE_HOST = 'com.hemingweight.server';
 
 // Ensure the server is running, starting it via native messaging if needed.
 // Returns { ok: true } or { ok: false, error: string }.

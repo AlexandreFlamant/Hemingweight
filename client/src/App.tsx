@@ -360,6 +360,11 @@ function App() {
       if (debounce) clearTimeout(debounce);
       debounce = setTimeout(() => {
         setPreviewKey(k => k + 1);
+        // Re-fetch pages in case new page files were created
+        fetch(`/api/pages?path=${encodeURIComponent(selectedProject.path)}`)
+          .then(r => r.json())
+          .then(data => { if (Array.isArray(data)) setPages(data); })
+          .catch(() => {});
       }, 800);
     };
 
@@ -485,6 +490,11 @@ function App() {
         setPreviewRunning(true);
         setRightPanel('preview');
         setPreviewKey(k => k + 1);
+        // Re-fetch pages now that preview is ready
+        fetch(`/api/pages?path=${encodeURIComponent(selectedProject.path)}`)
+          .then(r => r.json())
+          .then(d => { if (Array.isArray(d)) setPages(d); })
+          .catch(() => {});
       }
     } catch (err) {
       setPreviewError(`Failed to start preview: ${err instanceof Error ? err.message : err}`);
@@ -661,9 +671,9 @@ function App() {
         alignItems: 'center', justifyContent: 'center',
         gap: 16,
       }}>
-        <img src="/logo.png" alt="Clawable" style={{ width: 56, height: 56 }} />
+        <img src="/logo.png" alt="Hemingweight" style={{ width: 56, height: 56 }} />
         <div style={{ fontSize: 18, fontWeight: 600, color: '#e4e4ef' }}>
-          Welcome to Clawable
+          Welcome to Hemingweight
         </div>
         <div style={{ fontSize: 13, color: '#71717a', textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
           Choose a folder where your projects will be stored.
@@ -740,7 +750,7 @@ function App() {
               onMouseEnter={e => { if (!showMainMenu) e.currentTarget.style.background = '#27272a'; }}
               onMouseLeave={e => { if (!showMainMenu) e.currentTarget.style.background = 'transparent'; }}
             >
-              {!isEmbed && <img src="/logo.png" alt="Clawable" style={{ width: 24, height: 24 }} />}
+              {!isEmbed && <img src="/logo.png" alt="Hemingweight" style={{ width: 24, height: 24 }} />}
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
@@ -945,7 +955,7 @@ function App() {
           {/* Close button — embed/side panel mode */}
           {isEmbed && (
             <button
-              onClick={() => window.parent.postMessage({ type: 'clawable-close' }, '*')}
+              onClick={() => window.parent.postMessage({ type: 'hemingweight-close' }, '*')}
               style={{
                 width: 30, height: 30, borderRadius: 6,
                 background: 'transparent', border: 'none',
@@ -974,8 +984,8 @@ function App() {
               alignItems: 'center', justifyContent: 'center',
               gap: 12, zIndex: 10, background: '#18181b',
             }}>
-              <img src="/logo.png" alt="Clawable" style={{ width: 56, height: 56 }} />
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#e4e4ef' }}>Clawable</div>
+              <img src="/logo.png" alt="Hemingweight" style={{ width: 56, height: 56 }} />
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#e4e4ef' }}>Hemingweight</div>
               <div style={{ fontSize: 13, color: '#71717a', textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
                 Think of something you want to build
               </div>
@@ -1233,7 +1243,7 @@ function App() {
               }}
               title="Open chat"
             >
-              <img src="/logo.png" alt="Clawable" style={{ width: 24, height: 24 }} />
+              <img src="/logo.png" alt="Hemingweight" style={{ width: 24, height: 24 }} />
             </button>
           )}
 

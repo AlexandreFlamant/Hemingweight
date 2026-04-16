@@ -1,35 +1,41 @@
 #!/bin/bash
-# Clawable uninstaller — removes the Chrome native messaging manifest,
+# Hemingweight uninstaller — removes the Chrome native messaging manifest,
 # stops the running server, and cleans up local state.
 
-MANIFEST_NAME="com.clawable.server.json"
+MANIFEST_NAME="com.hemingweight.server.json"
 SERVER_PORT=3456
-LOG_DIR="$HOME/.clawable"
+LOG_DIR="$HOME/.hemingweight"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  CHROME_NM_DIR="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+  NM_DIRS=(
+    "$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+    "$HOME/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts"
+  )
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  CHROME_NM_DIR="$HOME/.config/google-chrome/NativeMessagingHosts"
+  NM_DIRS=(
+    "$HOME/.config/google-chrome/NativeMessagingHosts"
+    "$HOME/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"
+  )
 else
   echo "Unsupported OS: $OSTYPE (supported: macOS, Linux)"
   exit 1
 fi
 
 echo ""
-echo "Clawable — Uninstall"
+echo "Hemingweight — Uninstall"
 echo "===================="
 echo ""
 
-# 1. Remove Chrome native messaging manifest
-MANIFEST_PATH="$CHROME_NM_DIR/$MANIFEST_NAME"
-if [ -f "$MANIFEST_PATH" ]; then
-  rm -f "$MANIFEST_PATH"
-  echo "  - Removed native messaging manifest"
-else
-  echo "  - Native messaging manifest not found (already removed)"
-fi
+# 1. Remove native messaging manifests
+for NM_DIR in "${NM_DIRS[@]}"; do
+  MANIFEST_PATH="$NM_DIR/$MANIFEST_NAME"
+  if [ -f "$MANIFEST_PATH" ]; then
+    rm -f "$MANIFEST_PATH"
+    echo "  - Removed $MANIFEST_PATH"
+  fi
+done
 
-# 2. Stop any running Clawable server on SERVER_PORT
+# 2. Stop any running Hemingweight server on SERVER_PORT
 PIDS="$(lsof -ti tcp:$SERVER_PORT 2>/dev/null || true)"
 if [ -n "$PIDS" ]; then
   # shellcheck disable=SC2086
@@ -46,7 +52,7 @@ else
 fi
 
 # 3. Remove legacy LaunchAgent (from pre-native-messaging installs)
-OLD_PLIST="$HOME/Library/LaunchAgents/com.clawable.server.plist"
+OLD_PLIST="$HOME/Library/LaunchAgents/com.hemingweight.server.plist"
 if [ -f "$OLD_PLIST" ]; then
   launchctl unload "$OLD_PLIST" 2>/dev/null || true
   rm -f "$OLD_PLIST"
@@ -72,7 +78,7 @@ echo ""
 echo "Uninstall complete."
 echo ""
 echo "Note: this does not remove the Chrome extension itself or the"
-echo "cloned repo. To fully remove Clawable:"
+echo "cloned repo. To fully remove Hemingweight:"
 echo "  - Remove the extension at chrome://extensions"
 echo "  - Delete the repo directory if you no longer need it"
 echo ""

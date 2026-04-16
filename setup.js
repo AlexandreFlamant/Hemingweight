@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * Clawable setup script.
+ * Hemingweight setup script.
  *
  * Installs dependencies, builds the client, computes the Chrome extension ID
  * from the key in manifest.json, and writes the native messaging manifest
@@ -21,7 +21,7 @@ const ROOT = __dirname;
 const CLIENT = path.join(ROOT, 'client');
 const EXT = path.join(ROOT, 'extension');
 const NATIVE_HOST_DIR = path.join(ROOT, 'native-host');
-const HOST_SCRIPT = path.join(NATIVE_HOST_DIR, 'clawable-host.sh');
+const HOST_SCRIPT = path.join(NATIVE_HOST_DIR, 'hemingweight-host.sh');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,21 +56,28 @@ function computeExtensionId(base64Key) {
 }
 
 /**
- * Return the OS-specific directory for Chrome NativeMessagingHosts.
+ * Return the OS-specific directories for NativeMessagingHosts (Chrome + Brave).
  */
-function getNativeMessagingDir() {
+function getNativeMessagingDirs() {
   const platform = os.platform();
   const home = os.homedir();
 
   if (platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts');
+    return [
+      path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts'),
+      path.join(home, 'Library', 'Application Support', 'BraveSoftware', 'Brave-Browser', 'NativeMessagingHosts'),
+    ];
   }
   if (platform === 'linux') {
-    return path.join(home, '.config', 'google-chrome', 'NativeMessagingHosts');
+    return [
+      path.join(home, '.config', 'google-chrome', 'NativeMessagingHosts'),
+      path.join(home, '.config', 'BraveSoftware', 'Brave-Browser', 'NativeMessagingHosts'),
+    ];
   }
   if (platform === 'win32') {
-    // Windows uses registry, but the manifest still goes here for reference
-    return path.join(home, 'AppData', 'Local', 'Google', 'Chrome', 'User Data', 'NativeMessagingHosts');
+    return [
+      path.join(home, 'AppData', 'Local', 'Google', 'Chrome', 'User Data', 'NativeMessagingHosts'),
+    ];
   }
   throw new Error(`Unsupported platform: ${platform}`);
 }
@@ -108,23 +115,24 @@ try {
   const extensionId = computeExtensionId(manifest.key);
   console.log(`  ✓ Extension ID: ${extensionId}`);
 
-  // 4. Write native messaging manifest
-  log('Registering Chrome native messaging host…');
+  // 4. Write native messaging manifest to all supported browsers
+  log('Registering native messaging host…');
 
-  const nmDir = getNativeMessagingDir();
-  fs.mkdirSync(nmDir, { recursive: true });
-
+  const nmDirs = getNativeMessagingDirs();
   const nmManifest = {
-    name: 'com.clawable.server',
-    description: 'Clawable — auto-start local server for Claude Code in the browser',
+    name: 'com.hemingweight.server',
+    description: 'Hemingweight — auto-start local server for Claude Code in the browser',
     path: HOST_SCRIPT,
     type: 'stdio',
     allowed_origins: [`chrome-extension://${extensionId}/`],
   };
 
-  const nmPath = path.join(nmDir, 'com.clawable.server.json');
-  fs.writeFileSync(nmPath, JSON.stringify(nmManifest, null, 2) + '\n');
-  console.log(`  ✓ Wrote ${nmPath}`);
+  for (const nmDir of nmDirs) {
+    fs.mkdirSync(nmDir, { recursive: true });
+    const nmPath = path.join(nmDir, 'com.hemingweight.server.json');
+    fs.writeFileSync(nmPath, JSON.stringify(nmManifest, null, 2) + '\n');
+    console.log(`  ✓ Wrote ${nmPath}`);
+  }
   console.log(`  ✓ allowed_origins: chrome-extension://${extensionId}/`);
 
   // 5. Make host script executable

@@ -31,4 +31,4 @@ if [ -z "$NODE" ]; then
 fi
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-exec "$NODE" "$DIR/clawable-host.js"
+exec "$NODE" "$DIR/hemingweight-host.js"

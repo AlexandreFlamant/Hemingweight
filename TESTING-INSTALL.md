@@ -1,4 +1,4 @@
-# Clawable Install Testing Guide
+# Hemingweight Install Testing Guide
 
 Self-contained instructions for testing the install flow on a fresh Mac. No prior context needed — just follow the steps.
 
@@ -19,7 +19,7 @@ Self-contained instructions for testing the install flow on a fresh Mac. No prio
 
 ### What to test
 
-You're now on a clean Mac user account. This simulates a new user who just found Clawable.
+You're now on a clean Mac user account. This simulates a new user who just found Hemingweight.
 
 ---
 
@@ -54,21 +54,21 @@ It will prompt you to authenticate. Sign in with your Claude account (you need C
 Once Claude Code is running, paste this entire block and press Enter:
 
 ```
-Install Clawable on this machine. Here's exactly what to do:
+Install Hemingweight on this machine. Here's exactly what to do:
 
 1. Check prerequisites: make sure node (v18+), python3, and git are available. If anything is missing, install it via Homebrew (install Homebrew first if needed on macOS).
 
-2. Clone the repo: if ~/Developer/clawable exists, cd into it and run "git pull". Otherwise run "git clone https://github.com/AlexandreFlamant/clawable.git ~/Developer/clawable". Create ~/Developer if it doesn't exist.
+2. Clone the repo: if ~/Developer/hemingweight exists, cd into it and run "git pull". Otherwise run "git clone https://github.com/AlexandreFlamant/hemingweight.git ~/Developer/hemingweight". Create ~/Developer if it doesn't exist.
 
-3. Install dependencies: run "npm install --production" in ~/Developer/clawable, then "npm install" in ~/Developer/clawable/client.
+3. Install dependencies: run "npm install --production" in ~/Developer/hemingweight, then "npm install" in ~/Developer/hemingweight/client.
 
-4. Build the client: run "npm run build" in ~/Developer/clawable/client. Verify that ~/Developer/clawable/client/dist/index.html exists after.
+4. Build the client: run "npm run build" in ~/Developer/hemingweight/client. Verify that ~/Developer/hemingweight/client/dist/index.html exists after.
 
 5. Compute the Chrome extension ID from the key in the extension manifest — do NOT use the file path. Run this command:
 
    python3 -c "
    import json, hashlib, base64, os
-   manifest = json.load(open(os.path.expanduser('~/Developer/clawable/extension/manifest.json')))
+   manifest = json.load(open(os.path.expanduser('~/Developer/hemingweight/extension/manifest.json')))
    key_bytes = base64.b64decode(manifest['key'])
    digest = hashlib.sha256(key_bytes).hexdigest()[:32]
    print(''.join(chr(ord('a') + int(c, 16)) for c in digest))
@@ -76,11 +76,11 @@ Install Clawable on this machine. Here's exactly what to do:
 
    The result must be oppghhmjfjibmjjbpchmhheelfcnbboo. If it is not, stop and report the error.
 
-6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh, and set allowed_origins to ["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]. Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
+6. Register Chrome native messaging: read the template at ~/Developer/hemingweight/native-host/com.hemingweight.server.json.template. Replace HEMINGWEIGHT_HOST_SH_PATH with the absolute path to ~/Developer/hemingweight/native-host/hemingweight-host.sh, and set allowed_origins to ["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]. Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.hemingweight.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.hemingweight.server.json". Create the directory if needed.
 
-7. Make the host script executable: run "chmod +x ~/Developer/clawable/native-host/clawable-host.sh"
+7. Make the host script executable: run "chmod +x ~/Developer/hemingweight/native-host/hemingweight-host.sh"
 
-When everything is done, tell me to open Chrome, go to chrome://extensions, enable Developer mode (top right toggle), click Load unpacked, and select ~/Developer/clawable/extension.
+When everything is done, tell me to open Chrome, go to chrome://extensions, enable Developer mode (top right toggle), click Load unpacked, and select ~/Developer/hemingweight/extension.
 ```
 
 Watch what Claude does. Approve each command it asks to run. Note any errors.
@@ -91,16 +91,16 @@ Watch what Claude does. Approve each command it asks to run. Note any errors.
 2. Go to `chrome://extensions`
 3. Enable **Developer mode** (toggle in top right corner)
 4. Click **Load unpacked**
-5. Navigate to your home folder → Developer → clawable → extension
-   - The full path is: `/Users/testuser/Developer/clawable/extension`
+5. Navigate to your home folder → Developer → hemingweight → extension
+   - The full path is: `/Users/testuser/Developer/hemingweight/extension`
    - (Replace `testuser` with whatever username you created)
-6. The Clawable claw icon should appear in the Chrome toolbar
+6. The Hemingweight claw icon should appear in the Chrome toolbar
 
 ### Step 5: Verify It Works
 
-1. Click the Clawable icon
+1. Click the Hemingweight icon
 2. Choose "Side Panel" or "Window"
-3. It should connect to the local server and show the Clawable interface
+3. It should connect to the local server and show the Hemingweight interface
 4. Try creating a project and typing a prompt
 
 ---
@@ -118,12 +118,12 @@ Watch what Claude does. Approve each command it asks to run. Note any errors.
 - [ ] Did Claude compute the extension ID from the manifest key using python3?
 - [ ] Did Claude create the native messaging manifest?
 - [ ] Did Claude set allowed_origins to `["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]`?
-- [ ] Did Claude make clawable-host.sh executable?
+- [ ] Did Claude make hemingweight-host.sh executable?
 
 ### During Chrome extension load (Step 4):
 
 - [ ] Does the extension load without errors?
-- [ ] Does the Clawable icon appear in the toolbar?
+- [ ] Does the Hemingweight icon appear in the toolbar?
 
 ### During first use (Step 5):
 
@@ -138,25 +138,25 @@ Watch what Claude does. Approve each command it asks to run. Note any errors.
 
 ## Reset for Another Test (Uninstall Script)
 
-To test again, run this in Terminal to fully reset Clawable:
+To test again, run this in Terminal to fully reset Hemingweight:
 
 ```bash
-# Stop Clawable server if running
+# Stop Hemingweight server if running
 pkill -f "node.*server.js" 2>/dev/null
 
-# Remove Clawable files
-rm -rf ~/Developer/clawable
+# Remove Hemingweight files
+rm -rf ~/Developer/hemingweight
 
 # Remove native messaging registration
-rm -f ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json
+rm -f ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.hemingweight.server.json
 
 # Remove server logs
-rm -rf ~/.clawable
+rm -rf ~/.hemingweight
 
 # Remove the extension from Chrome manually:
-# Go to chrome://extensions and click "Remove" on Clawable
+# Go to chrome://extensions and click "Remove" on Hemingweight
 
-echo "Clawable fully removed. Ready to test install again."
+echo "Hemingweight fully removed. Ready to test install again."
 ```
 
 After running this, go back to **Step 3** (paste the prompt into Claude) to re-test.
@@ -180,13 +180,13 @@ npm uninstall -g @anthropic-ai/claude-code 2>/dev/null
 
 | Item | Location |
 |------|----------|
-| Clawable repo | `~/Developer/clawable` |
-| Server code | `~/Developer/clawable/server.js` |
-| Extension files | `~/Developer/clawable/extension/` |
-| Client build output | `~/Developer/clawable/client/dist/` |
-| Native messaging manifest | `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json` |
-| Native host script | `~/Developer/clawable/native-host/clawable-host.sh` |
-| Server logs | `~/.clawable/server.log` |
+| Hemingweight repo | `~/Developer/hemingweight` |
+| Server code | `~/Developer/hemingweight/server.js` |
+| Extension files | `~/Developer/hemingweight/extension/` |
+| Client build output | `~/Developer/hemingweight/client/dist/` |
+| Native messaging manifest | `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.hemingweight.server.json` |
+| Native host script | `~/Developer/hemingweight/native-host/hemingweight-host.sh` |
+| Server logs | `~/.hemingweight/server.log` |
 | Server port | `localhost:3456` |
 
 ## Debugging
@@ -199,16 +199,16 @@ If something doesn't work after install:
 curl http://localhost:3456/api/health
 
 # Check server logs
-cat ~/.clawable/server.log
+cat ~/.hemingweight/server.log
 
 # Try starting manually
-cd ~/Developer/clawable && node server.js
+cd ~/Developer/hemingweight && node server.js
 ```
 
 **Extension can't connect to server:**
 ```bash
 # Verify native messaging manifest exists and is correct
-cat ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json
+cat ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.hemingweight.server.json
 
 # Verify the host script path in the manifest points to a real file
 # Verify allowed_origins contains the computed extension ID (not a wildcard)
@@ -217,7 +217,7 @@ cat ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.clawab
 **Claude Code won't start in the browser terminal:**
 ```bash
 # Check which claude path is in server.js
-grep "claudeArgs" ~/Developer/clawable/server.js
+grep "claudeArgs" ~/Developer/hemingweight/server.js
 
 # Compare with actual location
 which claude
@@ -227,6 +227,6 @@ which claude
 
 ## Landing Page (Live)
 
-https://clawable-xi.vercel.app
+https://hemingweight-xi.vercel.app
 
 Password: `ErnestoHemingweight`

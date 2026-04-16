@@ -27,8 +27,8 @@ app.use(express.json());
 
 const PTY_BRIDGE = path.join(__dirname, 'pty-bridge.py');
 
-// ── User config (persisted in ~/.clawable/config.json) ─────────────────────
-const CONFIG_DIR = path.join(os.homedir(), '.clawable');
+// ── User config (persisted in ~/.hemingweight/config.json) ─────────────────────
+const CONFIG_DIR = path.join(os.homedir(), '.hemingweight');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 function readConfig() {
@@ -64,7 +64,7 @@ app.get('/api/health', (req, res) => {
 app.get('/docs', (req, res) => {
   const readmePath = path.join(__dirname, 'README.md');
   let md = '';
-  try { md = fs.readFileSync(readmePath, 'utf-8'); } catch { md = '# Clawable\n\nDocumentation not found.'; }
+  try { md = fs.readFileSync(readmePath, 'utf-8'); } catch { md = '# Hemingweight\n\nDocumentation not found.'; }
   // Escape for embedding in HTML
   const escaped = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   res.send(`<!DOCTYPE html>
@@ -72,7 +72,7 @@ app.get('/docs', (req, res) => {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clawable Docs</title>
+<title>Hemingweight Docs</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -126,7 +126,7 @@ app.get('/docs', (req, res) => {
 <body>
 <nav id="sidebar">
   <div class="logo">
-    <img src="/logo.png" alt="Clawable">
+    <img src="/logo.png" alt="Hemingweight">
     <span>Docs</span>
   </div>
   <div id="nav-links"></div>
@@ -134,7 +134,7 @@ app.get('/docs', (req, res) => {
 <main>
   <a href="/" class="back-link">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Back to Clawable
+    Back to Hemingweight
   </a>
   <div id="content"></div>
 </main>
@@ -489,7 +489,7 @@ app.post('/api/git/commit-and-push', (req, res) => {
   const gitEnv = { ...process.env, PATH: FULL_PATH, HOME: home };
   try {
     execSync('git add -A', { cwd: projectPath, stdio: 'pipe', env: gitEnv });
-    const commitMsg = message || 'Update from Clawable';
+    const commitMsg = message || 'Update from Hemingweight';
     try {
       execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: projectPath, stdio: 'pipe', env: gitEnv });
     } catch {
@@ -915,7 +915,7 @@ app.get('/api/pages', (req, res) => {
 });
 
 // ── Preview system ─────────────────────────────────────────────────────────
-// All preview traffic is proxied through /preview/ on the Clawable server.
+// All preview traffic is proxied through /preview/ on the Hemingweight server.
 // Users never see or think about port numbers.
 
 const previewServers = new Map();  // keyed by project path
@@ -1415,5 +1415,5 @@ process.on('SIGINT', () => { killAllPreviews(); process.exit(0); });
 
 const PORT = process.env.PORT || 3456;
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Clawable running at http://localhost:${PORT}`);
+  console.log(`Hemingweight running at http://localhost:${PORT}`);
 });

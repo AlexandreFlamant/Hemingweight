@@ -15,7 +15,7 @@ chrome.runtime.sendMessage({ type: 'ensure-server' }, (result) => {
 
 // Listen for close message from the iframe
 window.addEventListener('message', function (event) {
-  if (event.data && event.data.type === 'clawable-close') {
+  if (event.data && event.data.type === 'hemingweight-close') {
     window.close();
   }
 });

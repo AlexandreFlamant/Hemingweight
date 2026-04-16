@@ -1,4 +1,4 @@
-# Clawable
+# Hemingweight
 
 **Claude Code in the browser.** A local IDE that wraps [Claude Code](https://claude.ai/claude-code) with a visual interface — live preview, file browser, version control, and one-click integrations.
 
@@ -8,10 +8,10 @@
 
 ### Option A: One-Line Install (Recommended)
 
-If you're setting up from scratch, this single command installs everything you need — Node.js, Python 3, Git, Claude Code CLI, Clawable, and the Chrome extension:
+If you're setting up from scratch, this single command installs everything you need — Node.js, Python 3, Git, Claude Code CLI, Hemingweight, and the Chrome extension:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash
 ```
 
 ### Option B: Install via Claude Code
@@ -19,21 +19,21 @@ curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/inst
 If you have Claude Code running, paste this prompt and Claude will handle everything — dependencies, build, native messaging, and extension ID:
 
 ```
-Install Clawable on this machine. Here's exactly what to do:
+Install Hemingweight on this machine. Here's exactly what to do:
 
 1. Check prerequisites: make sure node (v18+), python3, and git are available. If anything is missing, install it via Homebrew (install Homebrew first if needed on macOS).
 
-2. Clone the repo: if ~/Developer/clawable exists, cd into it and run "git pull". Otherwise run "git clone https://github.com/AlexandreFlamant/clawable.git ~/Developer/clawable". Create ~/Developer if it doesn't exist.
+2. Clone the repo: if ~/Developer/hemingweight exists, cd into it and run "git pull". Otherwise run "git clone https://github.com/AlexandreFlamant/hemingweight.git ~/Developer/hemingweight". Create ~/Developer if it doesn't exist.
 
-3. Install dependencies: run "npm install --production" in ~/Developer/clawable, then "npm install" in ~/Developer/clawable/client.
+3. Install dependencies: run "npm install --production" in ~/Developer/hemingweight, then "npm install" in ~/Developer/hemingweight/client.
 
-4. Build the client: run "npm run build" in ~/Developer/clawable/client. Verify that ~/Developer/clawable/client/dist/index.html exists after.
+4. Build the client: run "npm run build" in ~/Developer/hemingweight/client. Verify that ~/Developer/hemingweight/client/dist/index.html exists after.
 
 5. Compute the Chrome extension ID from the key in the extension manifest — do NOT use the file path. Run this command:
 
    python3 -c "
    import json, hashlib, base64, os
-   manifest = json.load(open(os.path.expanduser('~/Developer/clawable/extension/manifest.json')))
+   manifest = json.load(open(os.path.expanduser('~/Developer/hemingweight/extension/manifest.json')))
    key_bytes = base64.b64decode(manifest['key'])
    digest = hashlib.sha256(key_bytes).hexdigest()[:32]
    print(''.join(chr(ord('a') + int(c, 16)) for c in digest))
@@ -41,11 +41,11 @@ Install Clawable on this machine. Here's exactly what to do:
 
    The result must be oppghhmjfjibmjjbpchmhheelfcnbboo. If it is not, stop and report the error.
 
-6. Register Chrome native messaging: read the template at ~/Developer/clawable/native-host/com.clawable.server.json.template. Replace CLAWABLE_HOST_SH_PATH with the absolute path to ~/Developer/clawable/native-host/clawable-host.sh, and set allowed_origins to ["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]. Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.clawable.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.clawable.server.json". Create the directory if needed.
+6. Register Chrome native messaging: read the template at ~/Developer/hemingweight/native-host/com.hemingweight.server.json.template. Replace HEMINGWEIGHT_HOST_SH_PATH with the absolute path to ~/Developer/hemingweight/native-host/hemingweight-host.sh, and set allowed_origins to ["chrome-extension://oppghhmjfjibmjjbpchmhheelfcnbboo/"]. Write the result to the Chrome NativeMessagingHosts directory — on macOS that's "~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.hemingweight.server.json", on Linux it's "~/.config/google-chrome/NativeMessagingHosts/com.hemingweight.server.json". Create the directory if needed.
 
-7. Make the host script executable: run "chmod +x ~/Developer/clawable/native-host/clawable-host.sh"
+7. Make the host script executable: run "chmod +x ~/Developer/hemingweight/native-host/hemingweight-host.sh"
 
-When everything is done, tell me to open Chrome, go to chrome://extensions, enable Developer mode (top right toggle), click Load unpacked, and select ~/Developer/clawable/extension.
+When everything is done, tell me to open Chrome, go to chrome://extensions, enable Developer mode (top right toggle), click Load unpacked, and select ~/Developer/hemingweight/extension.
 ```
 
 ### Option C: Manual Install (git clone)
@@ -53,8 +53,8 @@ When everything is done, tell me to open Chrome, go to chrome://extensions, enab
 If you already have Node.js, Python 3, Git, and Claude Code installed:
 
 ```bash
-git clone https://github.com/AlexandreFlamant/clawable.git
-cd clawable
+git clone https://github.com/AlexandreFlamant/hemingweight.git
+cd hemingweight
 ./install.sh
 ```
 
@@ -62,8 +62,8 @@ cd clawable
 
 1. Open Chrome → go to `chrome://extensions`
 2. Turn on **Developer mode** (top right toggle)
-3. Click **Load unpacked** → select `~/Developer/clawable/extension`
-4. Click the Clawable extension icon
+3. Click **Load unpacked** → select `~/Developer/hemingweight/extension`
+4. Click the Hemingweight extension icon
 5. Sign in to your Claude account when prompted
 6. Start building!
 
@@ -71,7 +71,7 @@ cd clawable
 
 ## Onboarding Guide
 
-New to Clawable? Here's everything you need to get started:
+New to Hemingweight? Here's everything you need to get started:
 
 ### Step 1: Install
 
@@ -79,13 +79,13 @@ Open your Terminal (press Cmd+Space, type "Terminal", press Enter) and paste one
 
 **One-line install** (installs everything automatically):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/clawable/main/install-remote.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash
 ```
 
 **Manual install** (if you already have Node.js, Python 3, Git, and Claude Code):
 ```bash
-git clone https://github.com/AlexandreFlamant/clawable.git
-cd clawable
+git clone https://github.com/AlexandreFlamant/hemingweight.git
+cd hemingweight
 ./install.sh
 ```
 
@@ -97,14 +97,14 @@ The one-line install takes about 2 minutes. You'll see green checkmarks as each 
 2. Go to `chrome://extensions` (type it in the address bar)
 3. Turn on **Developer mode** (toggle in the top right)
 4. Click **Load unpacked**
-5. Navigate to `~/Developer/clawable/extension` and select it
+5. Navigate to `~/Developer/hemingweight/extension` and select it
 
-You'll see the Clawable claw icon appear in your Chrome toolbar.
+You'll see the Hemingweight claw icon appear in your Chrome toolbar.
 
 ### Step 3: Sign in to Claude
 
-1. Click the Clawable extension icon
-2. Open Clawable (Side Panel or Popup Window)
+1. Click the Hemingweight extension icon
+2. Open Hemingweight (Side Panel or Popup Window)
 3. Select any project — Claude Code will start
 4. On first launch, Claude Code will ask you to sign in. You need either:
    - **Claude Max** ($100/month, unlimited) — sign up at [claude.ai](https://claude.ai)
@@ -141,7 +141,7 @@ You'll see the Clawable claw icon appear in your Chrome toolbar.
 
 ## How It Works
 
-Clawable runs a local Node.js server on port 3456 that:
+Hemingweight runs a local Node.js server on port 3456 that:
 
 1. Serves the browser UI
 2. Spawns a real Claude Code terminal session via a Python PTY bridge
@@ -191,7 +191,7 @@ Click the arrow on the split button to change the default action.
 
 ## Preview System
 
-Click **Run Preview** and Clawable auto-detects your project type:
+Click **Run Preview** and Hemingweight auto-detects your project type:
 
 | Framework | How it's detected | Command |
 |-----------|-------------------|---------|
@@ -265,7 +265,7 @@ Connects your project to a GitHub repository.
 2. Copy the repo URL (e.g. `https://github.com/you/my-project.git`)
 3. Open Integrations > GitHub > paste the URL > click **Connect**
 
-Clawable will initialize git (if needed), add the remote, create an initial commit, and push.
+Hemingweight will initialize git (if needed), add the remote, create an initial commit, and push.
 
 ### Supabase
 
@@ -278,7 +278,7 @@ One-click setup for [Supabase](https://supabase.com) — auth, database, and sto
 4. Copy the **Project URL** (looks like `https://xxxxx.supabase.co`)
 5. Copy the **anon/public key** (starts with `eyJ...`) — it's under "Project API keys"
 
-**To connect in Clawable:**
+**To connect in Hemingweight:**
 1. Click **Integrations** in the tab bar
 2. Click **Supabase** — the settings panel opens on the right
 3. Paste your Project URL and Anon Key
@@ -289,7 +289,7 @@ One-click setup for [Supabase](https://supabase.com) — auth, database, and sto
 - Creates `.env.local` with your credentials
 - Generates `lib/supabase.ts` (or `src/lib/supabase.ts` if you have a `src/` directory)
 
-**Framework-aware:** Clawable auto-detects your framework and uses the right env variable prefix:
+**Framework-aware:** Hemingweight auto-detects your framework and uses the right env variable prefix:
 
 | Framework | Env var names |
 |-----------|--------------|
@@ -329,11 +329,11 @@ If your project doesn't have one, click **Create CLAUDE.md** to start with a tem
 
 ## Chrome Extension
 
-Clawable includes a Chrome extension for quick access:
+Hemingweight includes a Chrome extension for quick access:
 
-- **Side panel mode** — opens Clawable as a browser side panel alongside any webpage
-- **Popup mode** — opens Clawable in a standalone window (1400x900)
-- **Auto-launch** — the extension automatically starts the Clawable server if it's not running (via native messaging host)
+- **Side panel mode** — opens Hemingweight as a browser side panel alongside any webpage
+- **Popup mode** — opens Hemingweight in a standalone window (1400x900)
+- **Auto-launch** — the extension automatically starts the Hemingweight server if it's not running (via native messaging host)
 
 To install the extension:
 1. Open `chrome://extensions`
@@ -346,7 +346,7 @@ To install the extension:
 
 ### Where do my projects live?
 
-All projects are in `~/Developer/`. Clawable lists every directory in that folder as a project.
+All projects are in `~/Developer/`. Hemingweight lists every directory in that folder as a project.
 
 ### Can I use an existing project?
 
@@ -359,7 +359,7 @@ Click the red **Stop** button in the preview toolbar. This kills the dev server 
 ### The preview isn't loading — what's wrong?
 
 - Make sure `package.json` has a `dev` or `start` script
-- Check if `node_modules` exists (Clawable auto-installs, but it can timeout on slow connections)
+- Check if `node_modules` exists (Hemingweight auto-installs, but it can timeout on slow connections)
 - Try running `npm install` in the project directory first
 
 ### Can I change the port?
@@ -389,7 +389,7 @@ Then restart the server.
 
 ### Is my code sent anywhere?
 
-No. Clawable runs entirely locally. Your code stays on your machine. The only network calls are:
+No. Hemingweight runs entirely locally. Your code stays on your machine. The only network calls are:
 - Claude Code's own API calls to Anthropic (same as using the CLI)
 - Git push/pull to your configured remote
 - npm install from the npm registry
@@ -402,7 +402,7 @@ Log in to [supabase.com/dashboard](https://supabase.com/dashboard), select your 
 
 1. Create a repository at [github.com/new](https://github.com/new)
 2. Copy the repo URL
-3. In Clawable, click **Integrations > GitHub**
+3. In Hemingweight, click **Integrations > GitHub**
 4. Paste the URL and click **Connect**
 
 ---

@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjxR9hCXHA74NHIY16LNFfucqZPzT/+qM/qza+ZZHhrUbCGEgtCSDehOw7FTxUOMY78NmwUsSua5c5JTC8dgUIJuS5j/B0L5QEDMO8GJ3D+IdxvWJjtVs7OjbY7MEu1XrYaqlsBX/St77gvaMX7yab/jTpnUpALo1nA4rL8h8r1OlwTt9HtJwoP9G/rOddLuiZna/BsQULq5Eq+SNbWSkXIr2w9vpScIyNs7xngYQ+rculZeOq66Quv+VEXuXaNELGQOdtFBSLRKIJtwuOBEcjZ9PVvsQu5ac7++Kb0HvpzoB/dWD2iltB3rRisc1WkXzlN7HW6HWpeItxebRXOIrxwIDAQAB",
-  "name": "Clawable",
+  "name": "Hemingweight",
   "description": "Claude Code in the browser — chat with Claude and preview your project side by side",
-  "version": "1.3.1",
+  "version": "1.3.3",
   "icons": {
     "48": "icon48.png",
     "128": "icon128.png"
@@ -13,7 +13,7 @@
   },
   "permissions": ["sidePanel", "nativeMessaging"],
   "action": {
-    "default_title": "Open Clawable",
+    "default_title": "Open Hemingweight",
     "default_icon": {
       "48": "icon48.png",
       "128": "icon128.png"

@@ -2,10 +2,10 @@
 'use strict';
 
 /**
- * Chrome Native Messaging Host for Clawable.
+ * Chrome Native Messaging Host for Hemingweight.
  *
  * Chrome launches this script when the extension sends a native message.
- * It starts the Clawable server (if not already running), then replies
+ * It starts the Hemingweight server (if not already running), then replies
  * with the server status so the extension knows it can proceed.
  *
  * Protocol: Chrome native messaging uses stdin/stdout with
@@ -20,7 +20,7 @@ const os = require('os');
 
 const SERVER_PORT = 3456;
 const SERVER_JS = path.join(__dirname, '..', 'server.js');
-const LOG_FILE = path.join(os.homedir(), '.clawable', 'server.log');
+const LOG_FILE = path.join(os.homedir(), '.hemingweight', 'server.log');
 
 // --- Native messaging helpers ---
 
