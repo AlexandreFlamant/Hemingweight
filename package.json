@@ -1,7 +1,7 @@
 {
   "name": "hemingweight",
-  "version": "1.0.2",
-  "description": "Claude Code in the browser — Lovable-style UI",
+  "version": "1.4.0",
+  "description": "Browser-based coding environment powered by AI",
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",
@@ -10,7 +10,7 @@
     "start": "node server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Alexandre Flamant",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

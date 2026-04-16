@@ -229,4 +229,4 @@ which claude
 
 https://hemingweight-xi.vercel.app
 
-Password: `ErnestoHemingweight`
+Password: `Ernesto`
