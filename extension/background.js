@@ -44,10 +44,25 @@ async function ensureServer() {
   });
 }
 
-// Handle messages from popup
+// Handle messages from sidepanel
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'ensure-server') {
     ensureServer().then(sendResponse);
     return true; // async response
+  }
+});
+
+// Click extension icon → ensure server → open window
+chrome.action.onClicked.addListener(async () => {
+  const result = await ensureServer();
+  if (result.ok) {
+    chrome.windows.create({
+      url: 'http://localhost:3456',
+      type: 'popup',
+      width: 1400,
+      height: 900,
+      left: 100,
+      top: 100,
+    });
   }
 });
