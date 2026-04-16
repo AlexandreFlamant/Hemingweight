@@ -83,6 +83,8 @@ function App() {
   const [forceTestPage2, setForceTestPage2] = useState(false);
   const [forceTestPage3, setForceTestPage3] = useState(false);
   const [testPage3ModelSelected, setTestPage3ModelSelected] = useState(false);
+  const [forceTestPage4, setForceTestPage4] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
   const [copied, setCopied] = useState(false);
   const [editingPath, setEditingPath] = useState(false);
   const [promptHighlight, setPromptHighlight] = useState(false);
@@ -267,6 +269,7 @@ function App() {
 
     setSelectedProject(project);
     setForceFirstTime(false);
+    setForceTestPage4(false);
     setShowMenu(false);
     setCurrentPage('/');
     setShowPageDropdown(false);
@@ -701,7 +704,244 @@ function App() {
               display: 'flex', flexDirection: 'column',
               overflow: 'hidden',
             }}>
-              {(projects.length === 0 || forceFirstTime || forceTestPage2 || forceTestPage3) ? (
+              {(projects.length === 0 || forceFirstTime || forceTestPage2 || forceTestPage3 || forceTestPage4) ? (
+                forceTestPage4 ? (
+                /* test-page4 — 3-step wizard */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {/* Fixed header */}
+                  <div style={{
+                    flexShrink: 0, padding: '20px 24px 16px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    textAlign: 'center',
+                  }}>
+                    <img src="/logo.png" alt="" style={{ width: 36, height: 36, marginBottom: 8 }} />
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14 }}>
+                      The open visual AI builder
+                    </div>
+                    {/* Step indicator */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
+                      {[1, 2, 3].map((step, i) => (
+                        <div key={step} style={{ display: 'flex', alignItems: 'center' }}>
+                          {i > 0 && (
+                            <div style={{
+                              width: 32, height: 2,
+                              background: wizardStep >= step ? 'var(--accent)' : 'var(--border-subtle)',
+                              transition: 'background 0.3s',
+                            }} />
+                          )}
+                          <div style={{
+                            width: 24, height: 24, borderRadius: '50%',
+                            background: wizardStep >= step ? 'var(--accent)' : 'transparent',
+                            color: wizardStep >= step ? '#fff' : 'var(--text-muted)',
+                            border: wizardStep >= step ? 'none' : '1px solid var(--border-subtle)',
+                            fontSize: 11, fontWeight: 700,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'background 0.3s, color 0.3s',
+                          }}>
+                            {step}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Scrollable content */}
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '28px 24px', textAlign: 'center' }}>
+                    {wizardStep === 1 && (
+                      <>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}>
+                          Describe it.{' '}
+                          <span style={{ color: 'var(--accent)' }}>Watch it get built.</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 340, margin: '0 auto 24px' }}>
+                          Hemingweight is a local IDE powered by AI. Type what you want, and your coding agent writes the code, builds the files, and shows you the result — live.
+                        </div>
+
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                          Choose your AI model
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 380, margin: '0 auto 24px' }}>
+                          {/* Claude */}
+                          <button
+                            className="btn-ghost"
+                            onClick={() => setWizardStep(2)}
+                            style={{
+                              flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
+                              border: '1px solid var(--accent)',
+                              background: 'rgba(224,122,75,0.08)',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24" fill="var(--accent)"><path d="M15.788 2.628a1.64 1.64 0 0 0-2.14.866l-5.99 13.982a1.64 1.64 0 0 0 .866 2.14 1.64 1.64 0 0 0 2.14-.866l5.99-13.982a1.64 1.64 0 0 0-.866-2.14M8.212 2.628a1.64 1.64 0 0 1 2.14.866l5.99 13.982a1.64 1.64 0 0 1-.866 2.14 1.64 1.64 0 0 1-2.14-.866L7.346 4.768a1.64 1.64 0 0 1 .866-2.14"/></svg>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Claude</span>
+                          </button>
+
+                          {/* GPT — coming soon */}
+                          <div style={{
+                            flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
+                            border: '1px solid var(--border-subtle)', opacity: 0.4,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                          }}>
+                            <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>GPT</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-bg-strong)', padding: '1px 6px', borderRadius: 4 }}>SOON</span>
+                          </div>
+
+                          {/* Gemini — coming soon */}
+                          <div style={{
+                            flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
+                            border: '1px solid var(--border-subtle)', opacity: 0.4,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                          }}>
+                            <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24"><path fill="var(--text-muted)" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Gemini</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-bg-strong)', padding: '1px 6px', borderRadius: 4 }}>SOON</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {wizardStep === 2 && (
+                      <div style={{ textAlign: 'left', maxWidth: 380, margin: '0 auto' }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6, textAlign: 'center' }}>
+                          Set up Hemingweight
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 20, textAlign: 'center' }}>
+                          Everything runs locally on your computer.
+                        </div>
+
+                        {/* Step 1 */}
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>1</div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Get a Claude account</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                              Make sure you have a{' '}
+                              <a href="https://claude.ai" target="_blank" rel="noopener" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Claude Pro or Max</a>{' '}
+                              account.
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Step 2 */}
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>2</div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Open Terminal</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                              On Mac: press <strong style={{ color: 'var(--text-primary)' }}>Cmd + Space</strong>, type <strong style={{ color: 'var(--text-primary)' }}>Terminal</strong>, and hit Enter.
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Step 3 */}
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>3</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Paste this command and press Enter</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>
+                              This installs everything Hemingweight needs. Takes about a minute.
+                            </div>
+                            <div
+                              onClick={() => {
+                                navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash');
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                              }}
+                              style={{
+                                width: '100%', padding: '10px 12px',
+                                background: 'var(--bg-code)', border: '1px solid var(--border-subtle)',
+                                borderRadius: 8, cursor: 'pointer',
+                                fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)',
+                                lineHeight: 1.6, wordBreak: 'break-all',
+                                display: 'flex', alignItems: 'flex-start', gap: 8,
+                              }}
+                            >
+                              <span style={{ flex: 1 }}>
+                                <span style={{ color: 'var(--text-muted)' }}>$</span>{' '}
+                                curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash
+                              </span>
+                              <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: copied ? 'var(--success)' : 'var(--accent)', display: 'flex', flexShrink: 0 }} title="Copy">
+                                {copied ? (
+                                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                ) : (
+                                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><path d="M3 11V3.5A.5.5 0 0 1 3.5 3H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'center', marginTop: 24 }}>
+                          <button
+                            className="btn-primary"
+                            onClick={() => setWizardStep(3)}
+                            style={{ padding: '10px 32px', borderRadius: 8, fontSize: 13 }}
+                          >
+                            I've done this — continue
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {wizardStep === 3 && (
+                      <>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}>
+                          You're{' '}
+                          <span style={{ color: 'var(--accent)' }}>ready to build.</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 340, margin: '0 auto 28px' }}>
+                          Type what you want in the panel on the right to start a new project, or open an existing one below.
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300, margin: '0 auto' }}>
+                          <button
+                            className="btn-ghost"
+                            onClick={() => { setForceTestPage4(false); }}
+                            style={{
+                              width: '100%', padding: '10px', borderRadius: 8,
+                              fontSize: 13, color: 'var(--text-tertiary)',
+                              border: '1px solid var(--border-subtle)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.5 }}>
+                              <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
+                            </svg>
+                            Open existing project
+                          </button>
+                        </div>
+
+                        <div style={{ position: 'relative', marginTop: 24 }}>
+                          <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                            Projects saved to{' '}
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{projectsDir}</span>
+                            {' · '}
+                            <button
+                              onClick={() => setEditingPath(!editingPath)}
+                              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 13, cursor: 'pointer', padding: 0 }}
+                            >
+                              {editingPath ? 'Close' : 'Change'}
+                            </button>
+                          </div>
+                          {editingPath && (
+                            <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 8, width: 300, zIndex: 10 }}>
+                              <FolderPicker
+                                compact
+                                currentPath={projectsDir}
+                                onSelect={(p) => { setSettingsDir(p); saveSettingsDir(); setEditingPath(false); }}
+                                onCancel={() => setEditingPath(false)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                ) :
                 (forceTestPage3 && !testPage3ModelSelected) ? (
                 /* test-page3 — BYO-Model picker (pre-step) */
                 <div style={{
@@ -1773,6 +2013,13 @@ function App() {
                       style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
                     >
                       test-page3
+                    </button>
+                    <button
+                      className="btn-ghost"
+                      onClick={() => { setForceTestPage4(true); setWizardStep(1); setForceFirstTime(false); setForceTestPage2(false); setForceTestPage3(false); setSelectedProject(null); }}
+                      style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
+                    >
+                      test-page4
                     </button>
                   </div>
                 </div>
