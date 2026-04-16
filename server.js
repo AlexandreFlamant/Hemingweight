@@ -347,6 +347,33 @@ app.post('/api/projects/create', (req, res) => {
   }
 });
 
+// ── Directory browser (for folder picker UI) ─────────────────────────────
+app.get('/api/directories', (req, res) => {
+  const home = os.homedir();
+  const dirPath = req.query.path || home;
+  const resolved = path.resolve(dirPath.replace(/^~/, home));
+
+  // Only allow browsing within home directory
+  if (!resolved.startsWith(home)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  try {
+    const entries = fs.readdirSync(resolved, { withFileTypes: true });
+    const dirs = entries
+      .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+      .map(e => e.name)
+      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+    // Compute display path with ~ prefix
+    const display = resolved === home ? '~' : '~' + resolved.slice(home.length);
+
+    res.json({ path: resolved, display, dirs, parent: resolved === home ? null : path.dirname(resolved) });
+  } catch {
+    res.json({ path: resolved, display: resolved, dirs: [], parent: path.dirname(resolved) });
+  }
+});
+
 // ── Git diff endpoint ──────────────────────────────────────────────────────
 app.get('/api/git/diff', (req, res) => {
   const projectPath = req.query.path;

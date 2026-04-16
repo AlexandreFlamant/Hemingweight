@@ -81,6 +81,12 @@ body {
   50% { opacity: 0.6; }
 }
 
+/* Menu button pulse ring */
+@keyframes pulseRing {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
 /* highlight.js theme — dark, matching Hemingweight palette */
 .hljs-keyword, .hljs-built_in { color: #c792ea; }
 .hljs-type, .hljs-class .hljs-title { color: #ffcb6b; }
@@ -390,6 +396,15 @@ body {
 }
 .git-action-item:hover {
   background: var(--bg-hover-soft);
+}
+
+/* First-time action cards */
+.first-time-card:hover {
+  border-color: #3f3f46 !important;
+  background: #18181f !important;
+}
+.first-time-card:hover .card-arrow {
+  opacity: 1 !important;
 }
 
 /* Close button (generic) */
