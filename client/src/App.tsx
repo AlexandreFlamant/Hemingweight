@@ -81,6 +81,12 @@ function App() {
   const [settingsDirSaving, setSettingsDirSaving] = useState(false);
   const [settingsDirMsg, setSettingsDirMsg] = useState('');
 
+  const [promptText, setPromptText] = useState('');
+  const [promptName, setPromptName] = useState('');
+  const [promptNameEdited, setPromptNameEdited] = useState(false);
+  const pendingPromptRef = useRef<string | null>(null);
+  const [showProjectDrawer, setShowProjectDrawer] = useState(false);
+
   const terminalRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -124,6 +130,11 @@ function App() {
       window.removeEventListener('blur', blurHandler);
     };
   }, [showPageDropdown, showProjectPicker, showMainMenu, showIntegrations, showDocsMenu]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowProjectDrawer(false); };
+    if (showProjectDrawer) { document.addEventListener('keydown', handler); return () => document.removeEventListener('keydown', handler); }
+  }, [showProjectDrawer]);
 
   // Fetch settings (first-launch detection)
   useEffect(() => {
@@ -258,6 +269,7 @@ function App() {
 
     setSelectedProject(project);
     setShowProjectPicker(false);
+    setShowProjectDrawer(false);
     setCurrentPage('/');
     setShowPageDropdown(false);
     setStatus('connecting');
@@ -283,6 +295,16 @@ function App() {
       const cols = term?.cols || 120;
       const rows = term?.rows || 40;
       ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows }));
+
+      if (pendingPromptRef.current) {
+        const prompt = pendingPromptRef.current;
+        pendingPromptRef.current = null;
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'input', data: prompt + '\n' }));
+          }
+        }, 2000);
+      }
 
       term?.onData((data: string) => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -499,9 +521,48 @@ function App() {
     }
   }, [newProjectName, connectToProject]);
 
+  // Suppress unused-variable errors for MainMenu-related state (kept for future use)
+  void mainMenuTab; void setMainMenuTab; void settingsDir; void setSettingsDir;
+  void settingsDirSaving; void settingsDirMsg; void saveSettingsDir; void MainMenu;
+
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(projectSearch.toLowerCase())
   );
+
+  const STOP_WORDS = new Set(['a','an','the','for','with','and','or','to','of','in','on','build','make','create','i','want','me','my','that','this','it']);
+  const slugifyPrompt = (text: string) => {
+    const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w && !STOP_WORDS.has(w));
+    return words.slice(0, 4).join('-') || '';
+  };
+
+  const handlePromptChange = (text: string) => {
+    setPromptText(text);
+    if (!promptNameEdited) setPromptName(slugifyPrompt(text));
+  };
+
+  const handlePromptSubmit = async () => {
+    if (!promptText.trim() || !promptName.trim()) return;
+    try {
+      const resp = await fetch('/api/projects/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: promptName }),
+      });
+      const data = await resp.json();
+      if (data.error) return;
+      const projResp = await fetch('/api/projects');
+      const projs = await projResp.json();
+      setProjects(projs);
+      const newProj = projs.find((p: Project) => p.path === data.path);
+      if (newProj) {
+        pendingPromptRef.current = promptText.trim();
+        connectToProject(newProj);
+        setPromptText('');
+        setPromptName('');
+        setPromptNameEdited(false);
+      }
+    } catch {}
+  };
 
   const statusDot = {
     idle: '#555570',
@@ -542,42 +603,24 @@ function App() {
           <div ref={mainMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
               className="btn-ghost"
-              onClick={() => { setShowMainMenu(!showMainMenu); if (!showMainMenu) { setSettingsDir(projectsDir); setSettingsDirMsg(''); } }}
+              onClick={() => { setShowProjectDrawer(true); setProjectSearch(''); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '6px 8px',
-                background: showMainMenu ? 'var(--accent-bg)' : 'transparent',
-                borderRadius: 6, color: showMainMenu ? 'var(--accent)' : 'var(--text-primary)',
+                borderRadius: 6,
               }}
             >
               {!isEmbed && <img src="/logo.png" alt="Hemingweight" style={{ width: 24, height: 24 }} />}
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
             </button>
 
-            <MainMenu
-              show={showMainMenu}
-              mainMenuTab={mainMenuTab}
-              setMainMenuTab={setMainMenuTab}
-              projectSearch={projectSearch}
-              setProjectSearch={setProjectSearch}
-              filteredProjects={filteredProjects}
-              selectedProject={selectedProject}
-              connectToProject={connectToProject}
-              onNewProject={() => setShowNewProject(true)}
-              onClose={() => setShowMainMenu(false)}
-              settingsDir={settingsDir}
-              setSettingsDir={(v) => { setSettingsDir(v); setSettingsDirMsg(''); }}
-              projectsDir={projectsDir}
-              saveSettingsDir={saveSettingsDir}
-              settingsDirSaving={settingsDirSaving}
-              settingsDirMsg={settingsDirMsg}
-            />
           </div>
 
           {/* Current project name */}
-          <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', outline: 'none' }}>
             {selectedProject?.name || 'Select project'}
           </div>
 
@@ -653,33 +696,9 @@ function App() {
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {!selectedProject && (
             <div style={{
-              position: 'absolute', inset: 0,
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
-              gap: 12, zIndex: 10, background: 'var(--bg-panel)',
-            }}>
-              <img src="/logo.png" alt="Hemingweight" style={{ width: 56, height: 56 }} />
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Hemingweight</div>
-              <div style={{ fontSize: 13, color: '#71717a', textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
-                Think of something you want to build
-              </div>
-              <a
-                href="/docs"
-                target="_blank"
-                className="link-hover"
-                style={{
-                  marginTop: 8, fontSize: 12, color: '#71717a',
-                  textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5,
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                  <path d="M1 3c1.5-1 3.5-1 5 0v10c-1.5-1-3.5-1-5 0V3z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M15 3c-1.5-1-3.5-1-5 0v10c1.5-1 3.5-1 5 0V3z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M8 3v10" stroke="currentColor" strokeWidth="1.3" />
-                </svg>
-                Documentation
-              </a>
-            </div>
+              position: 'absolute', inset: 0, zIndex: 10,
+              background: 'var(--bg-panel)',
+            }} />
           )}
           <div
             ref={terminalRef}
@@ -1230,19 +1249,156 @@ function App() {
                   )}
                 </>
               ) : (
-                <>
-                  <div style={{ fontSize: 14, color: 'var(--border-default)' }}>
-                    Select a project to get started
+                <div style={{
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  gap: 20, maxWidth: 480, width: '100%',
+                }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Let's build something.
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--bg-input)' }}>
-                    Click "Run Preview" after selecting a project
+                  <div
+                    style={{
+                      width: '100%', background: 'var(--bg-panel)',
+                      border: '1px solid var(--border-subtle)', borderRadius: 8,
+                      display: 'flex', flexDirection: 'column',
+                    }}
+                    onKeyDown={e => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                        e.preventDefault();
+                        handlePromptSubmit();
+                      }
+                    }}
+                  >
+                    <textarea
+                      rows={3}
+                      placeholder="A SaaS dashboard with auth and a pricing page..."
+                      value={promptText}
+                      onChange={e => handlePromptChange(e.target.value)}
+                      style={{
+                        width: '100%', padding: '12px 14px', background: 'transparent',
+                        border: 'none', outline: 'none', resize: 'none',
+                        color: 'var(--text-primary)', fontSize: 13, lineHeight: 1.6,
+                        fontFamily: 'inherit',
+                      }}
+                    />
+                    {promptText.trim() && (
+                      <>
+                        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0 14px' }} />
+                        <div style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>~/</span>
+                          <input
+                            type="text"
+                            value={promptName}
+                            onChange={e => { setPromptName(e.target.value); setPromptNameEdited(true); }}
+                            placeholder="project-name"
+                            style={{
+                              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                              color: 'var(--text-tertiary)', fontSize: 11,
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div style={{
+                      padding: '8px 14px', display: 'flex',
+                      alignItems: 'center', justifyContent: 'space-between',
+                    }}>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl'}+{'\u21b5'} to start
+                      </span>
+                      <button
+                        onClick={handlePromptSubmit}
+                        disabled={!promptText.trim() || !promptName.trim()}
+                        className="btn-primary"
+                        style={{
+                          padding: '6px 14px', borderRadius: 6,
+                          fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
+                        }}
+                      >
+                        Start
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
         </div>
       </div>}
+
+      {/* Project drawer overlay */}
+      <div
+        onClick={() => setShowProjectDrawer(false)}
+        style={{
+          position: 'fixed', inset: 0, top: 52, zIndex: 40,
+          background: showProjectDrawer ? 'rgba(0,0,0,0.55)' : 'transparent',
+          pointerEvents: showProjectDrawer ? 'auto' : 'none',
+          transition: 'background 0.2s',
+        }}
+      />
+
+      {/* Project drawer */}
+      <div style={{
+        position: 'fixed', top: 52, left: 0, bottom: 0, width: 340, zIndex: 50,
+        background: 'var(--bg-panel)',
+        borderRight: '1px solid var(--border-subtle)',
+        boxShadow: showProjectDrawer ? '4px 0 24px rgba(0,0,0,0.5)' : 'none',
+        transform: showProjectDrawer ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+        <input
+          placeholder="Search projects..."
+          value={projectSearch}
+          onChange={e => setProjectSearch(e.target.value)}
+          style={{
+            width: '100%', padding: '12px 16px',
+            background: 'transparent', border: 'none',
+            borderBottom: '1px solid var(--border-subtle)',
+            outline: 'none', color: 'var(--text-primary)', fontSize: 13,
+          }}
+        />
+        <button
+          className="menu-project-item"
+          onClick={() => { setShowNewProject(true); setShowProjectDrawer(false); }}
+          style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--accent)' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M8 3v10M3 8h10" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>New Project</span>
+        </button>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {filteredProjects.map(p => (
+            <button
+              key={p.path}
+              onClick={() => { connectToProject(p); setShowProjectDrawer(false); }}
+              className="menu-project-item"
+              style={{ padding: '10px 16px' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.35 }}>
+                <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+              <span style={{ flex: 1, fontSize: 13, color: selectedProject?.path === p.path ? 'var(--accent)' : undefined }}>{p.name}</span>
+              {selectedProject?.path === p.path ? (
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M3 8.5l3.5 3.5L13 4" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="project-arrow" style={{ flexShrink: 0, opacity: 0, transition: 'opacity 0.15s' }}>
+                  <path d="M6 3l5 5-5 5" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* New Project Modal */}
       <NewProjectModal
