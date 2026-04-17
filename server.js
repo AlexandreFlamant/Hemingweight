@@ -1068,10 +1068,10 @@ function detectDevSetup(projectPath) {
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 
       if (deps['next']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 3000, portFlag: '--', portArgs: ['-p'] };
-      if (deps['vite'] || deps['@vitejs/plugin-react']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 5173, portFlag: '--', portArgs: ['--port'] };
+      if (deps['vite'] || deps['@vitejs/plugin-react']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 5173, portFlag: '--', portArgs: ['--port'], noOpen: ['--open=false'] };
       if (deps['react-scripts']) return { cmd: 'npm', args: ['start'], defaultPort: 3000 };
-      if (deps['nuxt']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 3000, portFlag: '--', portArgs: ['--port'] };
-      if (deps['svelte'] || deps['@sveltejs/kit']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 5173, portFlag: '--', portArgs: ['--port'] };
+      if (deps['nuxt']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 3000, portFlag: '--', portArgs: ['--port'], noOpen: ['--no-open'] };
+      if (deps['svelte'] || deps['@sveltejs/kit']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 5173, portFlag: '--', portArgs: ['--port'], noOpen: ['--no-open'] };
       if (deps['astro']) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 4321, portFlag: '--', portArgs: ['--port'] };
       if (scripts.dev) return { cmd: 'npm', args: ['run', 'dev'], defaultPort: 3000 };
       if (scripts.start) return { cmd: 'npm', args: ['start'], defaultPort: 3000 };
@@ -1193,6 +1193,9 @@ app.post('/api/preview/start', async (req, res) => {
   let args = [...setup.args];
   if (setup.portFlag && setup.portArgs) {
     args.push(setup.portFlag, ...setup.portArgs, String(assignedPort));
+    if (setup.noOpen) args.push(...setup.noOpen);
+  } else if (setup.noOpen) {
+    args.push(...setup.noOpen);
   }
 
   try {
@@ -1204,6 +1207,7 @@ app.post('/api/preview/start', async (req, res) => {
         ...process.env,
         FORCE_COLOR: '0',
         BROWSER: 'none',
+        DISABLE_OPEN_BROWSER: '1',
         HOME: os.homedir(),
         PATH: FULL_PATH,
         PORT: String(assignedPort),

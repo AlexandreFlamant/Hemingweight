@@ -9,6 +9,7 @@ import SetupScreen from './components/SetupScreen';
 import NewProjectModal from './components/NewProjectModal';
 import MainMenu from './components/MainMenu';
 import IntegrationsDropdown from './components/IntegrationsDropdown';
+import ModelSwitcherDropdown, { type ModelKey, type ModelsMap } from './components/ModelSwitcherDropdown';
 import GitPanel from './components/GitPanel';
 import ClaudeMdPanel from './components/ClaudeMdPanel';
 import DocsMenu from './components/DocsMenu';
@@ -33,7 +34,7 @@ function App() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isCooking, setIsCooking] = useState(false);
   const [previewRunning, setPreviewRunning] = useState(false);
-  const [previewError, setPreviewError] = useState('');
+  const [, setPreviewError] = useState('');
   const [rightPanel, setRightPanel] = useState<'preview' | 'code' | 'claude' | 'git'>('preview');
   const [claudeMd, setClaudeMd] = useState<string | null>(null);
   const [claudeMdLoading, setClaudeMdLoading] = useState(false);
@@ -87,7 +88,11 @@ function App() {
   const [forceTestPage4, setForceTestPage4] = useState(false);
   const [forceTestPage5, setForceTestPage5] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
-  const [selectedModel, setSelectedModel] = useState<'claude' | 'mistral'>('claude');
+  const [selectedModel, setSelectedModel] = useState<ModelKey>(() => {
+    const stored = (typeof localStorage !== 'undefined' && localStorage.getItem('hw.selectedModel')) as ModelKey | null;
+    return stored && ['claude', 'mistral', 'openai', 'gemini'].includes(stored) ? stored : 'claude';
+  });
+  const [availableModels, setAvailableModels] = useState<ModelsMap>({});
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editingPath, setEditingPath] = useState(false);
@@ -106,6 +111,18 @@ function App() {
   const pageDropdownRef = useRef<HTMLDivElement>(null);
   const integrationsRef = useRef<HTMLDivElement>(null);
   const docsMenuRef = useRef<HTMLDivElement>(null);
+  const modelChipRef = useRef<HTMLButtonElement>(null);
+  const selectedModelRef = useRef<ModelKey>(selectedModel);
+  useEffect(() => {
+    selectedModelRef.current = selectedModel;
+    try { localStorage.setItem('hw.selectedModel', selectedModel); } catch {}
+  }, [selectedModel]);
+
+  const refreshAvailableModels = useCallback(() => {
+    fetch('/api/models').then(r => r.json()).then((data: ModelsMap) => setAvailableModels(data)).catch(() => {});
+  }, []);
+  useEffect(() => { refreshAvailableModels(); }, [refreshAvailableModels]);
+  useEffect(() => { if (showModelDropdown) refreshAvailableModels(); }, [showModelDropdown, refreshAvailableModels]);
 
   // Close dropdowns on click outside (including iframe clicks via blur)
   useEffect(() => {
@@ -302,21 +319,27 @@ function App() {
       setStatus('running');
       const cols = term?.cols || 120;
       const rows = term?.rows || 40;
-      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows }));
+      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows, model: selectedModelRef.current }));
 
       if (pendingPromptRef.current) {
         const prompt = pendingPromptRef.current;
         pendingPromptRef.current = null;
-        setTimeout(() => {
-          if (ws.readyState === WebSocket.OPEN) {
+        // Retry submit a few times — claude may still be initializing when the first try fires.
+        let attempt = 0;
+        const submit = () => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          if (attempt === 0) {
             ws.send(JSON.stringify({ type: 'input', data: prompt }));
-            setTimeout(() => {
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'input', data: '\r' }));
-              }
-            }, 150);
           }
-        }, 2000);
+          setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'input', data: '\r' }));
+            }
+          }, 400);
+          attempt++;
+          if (attempt < 3) setTimeout(submit, 2500);
+        };
+        setTimeout(submit, 2500);
       }
 
       term?.onData((data: string) => {
@@ -369,9 +392,7 @@ function App() {
         body: JSON.stringify({ projectPath: selectedProject.path }),
       });
       const data = await resp.json();
-      if (data.error) {
-        setPreviewError(data.error);
-      } else if (data.ready && data.url) {
+      if (data.ready && data.url) {
         setPreviewUrl(data.url);
         setPreviewRunning(true);
         setIsCooking(false);
@@ -381,13 +402,23 @@ function App() {
           .then(r => r.json())
           .then(d => { if (Array.isArray(d)) setPages(d); })
           .catch(() => {});
+      } else if (data.error) {
+        // No previewable setup (e.g. standalone script). Drop cooking so we
+        // show the neutral placeholder instead of the spinner.
+        setIsCooking(false);
       }
-    } catch (err) {
-      setPreviewError(`Failed to start preview: ${err instanceof Error ? err.message : err}`);
-    } finally {
+    } catch {}
+    finally {
       setPreviewLoading(false);
     }
   }, [selectedProject]);
+
+  // Auto-retry preview while a project is open and nothing is running yet
+  useEffect(() => {
+    if (!selectedProject || previewUrl || previewRunning) return;
+    const id = setInterval(() => { launchPreview(); }, 5000);
+    return () => clearInterval(id);
+  }, [selectedProject, previewUrl, previewRunning, launchPreview]);
 
   // Fetch pages when project changes
   useEffect(() => {
@@ -639,92 +670,6 @@ function App() {
           }}>
             {selectedProject?.name || 'No project selected'}
           </span>
-
-          {/* Model switcher chip */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowModelDropdown(v => !v)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '3px 8px', borderRadius: 5,
-                background: showModelDropdown ? 'var(--accent-bg)' : 'var(--bg-code)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: 11, fontWeight: 600,
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
-              title="Switch model"
-            >
-              <span style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: selectedModel === 'mistral' ? '#FA500F' : '#D97757',
-              }} />
-              {selectedModel === 'mistral' ? 'Mistral' : 'Claude'}
-              <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.6 }}>
-                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {showModelDropdown && (
-              <>
-                <div
-                  onClick={() => setShowModelDropdown(false)}
-                  style={{ position: 'fixed', inset: 0, zIndex: 60 }}
-                />
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, marginTop: 4,
-                  minWidth: 180, zIndex: 61,
-                  background: 'var(--bg-panel)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 8,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                  overflow: 'hidden',
-                }}>
-                  {([
-                    { key: 'claude' as const, name: 'Claude', color: '#D97757' },
-                    { key: 'mistral' as const, name: 'Mistral', color: '#FA500F' },
-                  ]).map(m => (
-                    <button
-                      key={m.key}
-                      onClick={() => { setSelectedModel(m.key); setShowModelDropdown(false); }}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '8px 12px', background: 'none', border: 'none',
-                        cursor: 'pointer', textAlign: 'left',
-                        fontSize: 12, color: 'var(--text-primary)',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-code)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-                    >
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-                      <span style={{ flex: 1 }}>{m.name}</span>
-                      {selectedModel === m.key && (
-                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                          <path d="M3 8.5l3.5 3.5L13 4" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                  <div style={{ height: 1, background: 'var(--border-subtle)' }} />
-                  <button
-                    onClick={() => { setShowModelDropdown(false); setForceTestPage5(true); setWizardStep(2); setSelectedProject(null); }}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 12px', background: 'none', border: 'none',
-                      cursor: 'pointer', textAlign: 'left',
-                      fontSize: 12, color: 'var(--accent)', fontWeight: 600,
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-code)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                      <path d="M8 3v10M3 8h10" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" />
-                    </svg>
-                    Add new model
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
 
           <div style={{ flex: 1 }} />
 
@@ -2161,6 +2106,63 @@ function App() {
             padding: 2,
             gap: 2,
           }}>
+            {/* Model switcher */}
+            <div style={{ position: 'relative' }}>
+              <button
+                ref={modelChipRef}
+                onClick={() => setShowModelDropdown(v => !v)}
+                style={{
+                  padding: '6px 12px', borderRadius: 6, border: 'none',
+                  background: showModelDropdown ? 'var(--accent)' : 'transparent',
+                  color: showModelDropdown ? '#fff' : '#71717a',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+                title="Switch model"
+              >
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: selectedModel === 'mistral' ? '#FA500F'
+                    : selectedModel === 'openai' ? '#10a37f'
+                    : selectedModel === 'gemini' ? '#4285F4'
+                    : '#D97757',
+                }} />
+                {selectedModel === 'mistral' ? 'Mistral'
+                  : selectedModel === 'openai' ? 'OpenAI'
+                  : selectedModel === 'gemini' ? 'Gemini'
+                  : 'Claude'}
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ transform: showModelDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {showModelDropdown && (
+                <div
+                  onClick={() => setShowModelDropdown(false)}
+                  style={{ position: 'fixed', inset: 0, zIndex: 60 }}
+                />
+              )}
+              <ModelSwitcherDropdown
+                show={showModelDropdown}
+                anchorRef={modelChipRef}
+                models={availableModels}
+                selectedModel={selectedModel}
+                onSwitch={(key) => {
+                  setSelectedModel(key);
+                  selectedModelRef.current = key;
+                  setShowModelDropdown(false);
+                  if (selectedProject) connectToProject(selectedProject);
+                }}
+                onInstall={(key) => {
+                  setSelectedModel(key);
+                  selectedModelRef.current = key;
+                  setShowModelDropdown(false);
+                  setForceTestPage5(true);
+                  setWizardStep(2);
+                  setSelectedProject(null);
+                }}
+              />
+            </div>
             {(['preview', 'code', 'claude'] as const).map(tab => (
               <button
                 key={tab}
@@ -2446,39 +2448,9 @@ function App() {
                     </div>
                   </div>
                 ) : (
-                <>
-                  <button
-                    onClick={launchPreview}
-                    disabled={previewLoading}
-                    className="btn-primary"
-                    style={{
-                      padding: '12px 28px', borderRadius: 10,
-                      fontSize: 14,
-                      cursor: previewLoading ? 'wait' : 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      boxShadow: '0 0 20px rgba(224, 122, 75, 0.2)',
-                    }}
-                  >
-                    {previewLoading ? (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
-                        <path d="M8 2a6 6 0 1 0 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                        <path d="M4 2l10 6-10 6V2z" fill="currentColor" />
-                      </svg>
-                    )}
-                    {previewLoading ? 'Starting server...' : 'Run Preview'}
-                  </button>
-                  <div style={{ fontSize: 12, color: 'var(--border-default)' }}>
-                    Launches the dev server and loads the preview
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 320, textAlign: 'center', lineHeight: 1.6 }}>
+                    Nothing to see here… yet.
                   </div>
-                  {previewError && (
-                    <div style={{ fontSize: 12, color: 'var(--error)', maxWidth: 320, textAlign: 'center', lineHeight: 1.5 }}>
-                      {previewError}
-                    </div>
-                  )}
-                </>
                 )
               ) : (
                 <div style={{
