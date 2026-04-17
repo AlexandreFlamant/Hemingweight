@@ -281,7 +281,7 @@ function App() {
       }, delay));
     }
     return () => timers.forEach(clearTimeout);
-  }, [chatOpen]);
+  }, [chatOpen, selectedModel]);
 
   const connectToProject = useCallback((project: Project) => {
     if (selectedProject && selectedProject.path !== project.path) {
@@ -1869,7 +1869,9 @@ function App() {
           <div
             ref={terminalRef}
             style={{
-              position: 'absolute', inset: 0,
+              position: 'absolute',
+              top: 0, left: 0, right: 0,
+              bottom: selectedModel === 'mistral' ? 8 : 0,
               opacity: selectedProject ? 1 : 0,
             }}
           />
