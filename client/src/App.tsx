@@ -31,6 +31,7 @@ function App() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewKey, setPreviewKey] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [isCooking, setIsCooking] = useState(false);
   const [previewRunning, setPreviewRunning] = useState(false);
   const [previewError, setPreviewError] = useState('');
   const [rightPanel, setRightPanel] = useState<'preview' | 'code' | 'claude' | 'git'>('preview');
@@ -80,11 +81,14 @@ function App() {
   const [settingsDirSaving, setSettingsDirSaving] = useState(false);
   const [settingsDirMsg, setSettingsDirMsg] = useState('');
   const [forceFirstTime, setForceFirstTime] = useState(false);
-  const [forceTestPage2, setForceTestPage2] = useState(false);
-  const [forceTestPage3, setForceTestPage3] = useState(false);
+  const [forceTestPage2] = useState(false);
+  const [forceTestPage3] = useState(false);
   const [testPage3ModelSelected, setTestPage3ModelSelected] = useState(false);
   const [forceTestPage4, setForceTestPage4] = useState(false);
+  const [forceTestPage5, setForceTestPage5] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const [selectedModel, setSelectedModel] = useState<'claude' | 'mistral'>('claude');
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editingPath, setEditingPath] = useState(false);
   const [promptHighlight, setPromptHighlight] = useState(false);
@@ -246,6 +250,8 @@ function App() {
     launchPreview();
   }, [selectedProject]);
 
+  // test-page5 step 3 auto-detect is paused — Done button advances manually.
+
   // Refit terminal when chat panel toggles
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -270,6 +276,7 @@ function App() {
     setSelectedProject(project);
     setForceFirstTime(false);
     setForceTestPage4(false);
+    setForceTestPage5(false);
     setShowMenu(false);
     setCurrentPage('/');
     setShowPageDropdown(false);
@@ -302,7 +309,12 @@ function App() {
         pendingPromptRef.current = null;
         setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'input', data: prompt + '\n' }));
+            ws.send(JSON.stringify({ type: 'input', data: prompt }));
+            setTimeout(() => {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'input', data: '\r' }));
+              }
+            }, 150);
           }
         }, 2000);
       }
@@ -362,6 +374,7 @@ function App() {
       } else if (data.ready && data.url) {
         setPreviewUrl(data.url);
         setPreviewRunning(true);
+        setIsCooking(false);
         setRightPanel('preview');
         setPreviewKey(k => k + 1);
         fetch(`/api/pages?path=${encodeURIComponent(selectedProject.path)}`)
@@ -556,6 +569,8 @@ function App() {
       const newProj = projs.find((p: Project) => p.path === data.path);
       if (newProj) {
         pendingPromptRef.current = promptText.trim();
+        setIsCooking(true);
+        setTimeout(() => setIsCooking(false), 90000);
         connectToProject(newProj);
         setPromptText('');
         setPromptName('');
@@ -624,6 +639,92 @@ function App() {
           }}>
             {selectedProject?.name || 'No project selected'}
           </span>
+
+          {/* Model switcher chip */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowModelDropdown(v => !v)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '3px 8px', borderRadius: 5,
+                background: showModelDropdown ? 'var(--accent-bg)' : 'var(--bg-code)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: 11, fontWeight: 600,
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+              title="Switch model"
+            >
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: selectedModel === 'mistral' ? '#FA500F' : '#D97757',
+              }} />
+              {selectedModel === 'mistral' ? 'Mistral' : 'Claude'}
+              <svg width="9" height="9" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.6 }}>
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {showModelDropdown && (
+              <>
+                <div
+                  onClick={() => setShowModelDropdown(false)}
+                  style={{ position: 'fixed', inset: 0, zIndex: 60 }}
+                />
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                  minWidth: 180, zIndex: 61,
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                  overflow: 'hidden',
+                }}>
+                  {([
+                    { key: 'claude' as const, name: 'Claude', color: '#D97757' },
+                    { key: 'mistral' as const, name: 'Mistral', color: '#FA500F' },
+                  ]).map(m => (
+                    <button
+                      key={m.key}
+                      onClick={() => { setSelectedModel(m.key); setShowModelDropdown(false); }}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '8px 12px', background: 'none', border: 'none',
+                        cursor: 'pointer', textAlign: 'left',
+                        fontSize: 12, color: 'var(--text-primary)',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-code)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{m.name}</span>
+                      {selectedModel === m.key && (
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                          <path d="M3 8.5l3.5 3.5L13 4" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                  <div style={{ height: 1, background: 'var(--border-subtle)' }} />
+                  <button
+                    onClick={() => { setShowModelDropdown(false); setForceTestPage5(true); setWizardStep(2); setSelectedProject(null); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', background: 'none', border: 'none',
+                      cursor: 'pointer', textAlign: 'left',
+                      fontSize: 12, color: 'var(--accent)', fontWeight: 600,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-code)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                      <path d="M8 3v10M3 8h10" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                    Add new model
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           <div style={{ flex: 1 }} />
 
@@ -704,7 +805,442 @@ function App() {
               display: 'flex', flexDirection: 'column',
               overflow: 'hidden',
             }}>
-              {(projects.length === 0 || forceFirstTime || forceTestPage2 || forceTestPage3 || forceTestPage4) ? (
+              {(projects.length === 0 || forceFirstTime || forceTestPage2 || forceTestPage3 || forceTestPage4 || forceTestPage5) ? (
+                forceTestPage5 ? (
+                /* test-page5 — iteration on test-page4 */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {wizardStep === 1 ? (
+                    <div style={{
+                      flex: 1,
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'flex-start',
+                      padding: '120px 24px 32px', textAlign: 'center',
+                    }}>
+                      <img src="/logo.png" alt="" style={{ width: 48, height: 48, marginBottom: 16 }} />
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+                        The open visual AI builder
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.3 }}>
+                        Yours, on your{' '}
+                        <span style={{ color: 'var(--accent)' }}>machine.</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 360, marginBottom: 20 }}>
+                        Hemingweight runs locally. No cloud, no lock-in. Every project is saved as real files in a folder you choose, yours to edit, version, and keep.
+                      </div>
+
+                      <div style={{ width: '100%', maxWidth: 380 }}>
+                        {editingPath ? (
+                          <FolderPicker
+                            currentPath={projectsDir}
+                            onSelect={(p) => { setSettingsDir(p); saveSettingsDir(); setEditingPath(false); }}
+                            onCancel={() => setEditingPath(false)}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setEditingPath(true)}
+                            style={{
+                              width: '100%', padding: '14px 16px', borderRadius: 10,
+                              background: 'var(--bg-code)',
+                              border: '1px solid var(--border-subtle)',
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              cursor: 'pointer', textAlign: 'left',
+                              transition: 'border-color 0.15s',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                          >
+                            <div style={{
+                              width: 36, height: 36, borderRadius: 8,
+                              background: 'var(--accent-bg-strong)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                            }}>
+                              <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="var(--accent)" strokeWidth="1.4" />
+                              </svg>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
+                                Root folder
+                              </div>
+                              <div style={{
+                                fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                                {projectsDir}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
+                              Change
+                            </span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, maxWidth: 360, marginTop: 14, fontStyle: 'italic' }}>
+                        Ship whenever you're ready. Push to GitHub, deploy to Vercel, or host it anywhere.
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 400, marginTop: 24 }}>
+                        <span style={{ padding: '4px 10px', fontSize: 12, visibility: 'hidden' }}>Next</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[1, 2, 3, 4].map(n => (
+                            <div key={n} style={{
+                              width: 6, height: 6, borderRadius: '50%',
+                              background: wizardStep === n ? 'var(--accent)' : 'var(--border-subtle)',
+                              transition: 'background 0.2s',
+                            }} />
+                          ))}
+                        </div>
+                        <button
+                          className="btn-ghost"
+                          onClick={() => setWizardStep(2)}
+                          style={{ padding: '4px 10px', fontSize: 12, fontWeight: 600, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  ) : wizardStep === 2 ? (
+                    <div style={{
+                      flex: 1,
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'flex-start',
+                      padding: '120px 24px 32px', textAlign: 'center',
+                    }}>
+                      <img src="/logo.png" alt="" style={{ width: 48, height: 48, marginBottom: 16 }} />
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+                        Let's start
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1.35, maxWidth: 380 }}>
+                        Hemingweight is a <span style={{ color: 'var(--accent)' }}>BYOM session</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                        (Bring Your Own Model)
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 28 }}>
+                        Choose your favourite LLM.
+                      </div>
+
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: 10,
+                        width: '100%',
+                        maxWidth: 400,
+                      }}>
+                        {[
+                          {
+                            key: 'claude', name: 'Claude', active: true,
+                            icon: (
+                              <svg viewBox="0 0 32 32" width="30" height="30" fill="#D97757" xmlns="http://www.w3.org/2000/svg">
+                                <g transform="translate(16 16)">
+                                  <ellipse rx="2" ry="13" />
+                                  <ellipse rx="2" ry="13" transform="rotate(45)" />
+                                  <ellipse rx="2" ry="13" transform="rotate(90)" />
+                                  <ellipse rx="2" ry="13" transform="rotate(135)" />
+                                </g>
+                              </svg>
+                            ),
+                          },
+                          {
+                            key: 'mistral', name: 'Mistral', active: true,
+                            icon: (
+                              <svg viewBox="0 0 24 24" width="26" height="26" fill="#FA500F" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.143 3.429v3.428h-3.429v3.429h-3.428V6.857H6.857V3.43H3.43v13.714H0v3.428h10.286v-3.428H6.857v-3.429h3.429v3.429h3.429v-3.429h3.428v3.429h-3.428v3.428H24v-3.428h-3.43V3.429z"/>
+                              </svg>
+                            ),
+                          },
+                          {
+                            key: 'openai', name: 'OpenAI', active: false,
+                            icon: (
+                              <svg viewBox="0 0 24 24" width="26" height="26" fill="#a1a1aa" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+                              </svg>
+                            ),
+                          },
+                          {
+                            key: 'gemini', name: 'Gemini', active: false,
+                            icon: (
+                              <svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
+                                <path fill="#a1a1aa" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z" />
+                              </svg>
+                            ),
+                          },
+                        ].map(m => (
+                          <button
+                            key={m.key}
+                            disabled={!m.active}
+                            onClick={() => { if (m.active) { setSelectedModel(m.key as 'claude' | 'mistral'); setWizardStep(3); } }}
+                            style={{
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                              padding: '16px 8px',
+                              background: 'var(--bg-code)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 10,
+                              cursor: m.active ? 'pointer' : 'not-allowed',
+                              transition: 'border-color 0.15s, transform 0.1s',
+                            }}
+                            onMouseEnter={e => { if (m.active) e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                            onMouseLeave={e => { if (m.active) e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                          >
+                            <div style={{
+                              width: 36, height: 36,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              opacity: m.active ? 1 : 0.65,
+                            }}>
+                              {m.icon}
+                            </div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: m.active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                              {m.name}
+                            </div>
+                            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 11 }}>
+                              {m.active ? '\u00a0' : 'Coming soon'}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 400, marginTop: 28 }}>
+                        <button
+                          className="btn-ghost"
+                          onClick={() => setWizardStep(1)}
+                          style={{ padding: '4px 10px', fontSize: 12, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        >
+                          Back
+                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[1, 2, 3, 4].map(n => (
+                            <div key={n} style={{
+                              width: 6, height: 6, borderRadius: '50%',
+                              background: wizardStep === n ? 'var(--accent)' : 'var(--border-subtle)',
+                              transition: 'background 0.2s',
+                            }} />
+                          ))}
+                        </div>
+                        <span style={{ padding: '4px 10px', fontSize: 12, visibility: 'hidden' }}>Back</span>
+                      </div>
+                    </div>
+                  ) : wizardStep === 3 ? (
+                    <div style={{
+                      flex: 1,
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'flex-start',
+                      padding: '120px 24px 32px', textAlign: 'center',
+                    }}>
+                      <img src="/logo.png" alt="" style={{ width: 48, height: 48, marginBottom: 16 }} />
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+                        Last step
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 28, lineHeight: 1.3 }}>
+                        Hook up <span style={{ color: 'var(--accent)' }}>{selectedModel === 'mistral' ? 'Mistral.' : 'Claude Code.'}</span>
+                      </div>
+
+                      <div style={{ width: '100%', maxWidth: 380, textAlign: 'left' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+                          Getting started
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>1</div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Open Terminal</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                              Press <strong style={{ color: 'var(--text-primary)' }}>Cmd + Space</strong>, type <strong style={{ color: 'var(--text-primary)' }}>Terminal</strong>, and hit Enter.
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>2</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>
+                              {selectedModel === 'mistral' ? 'Install the Mistral SDK' : 'Install Claude Code'}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>
+                              {selectedModel === 'mistral' ? (
+                                <>
+                                  Requires a{' '}
+                                  <a href="https://console.mistral.ai" target="_blank" rel="noopener" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Mistral API key</a>{' '}
+                                  from La Plateforme. If you haven't installed the SDK yet, paste this:
+                                </>
+                              ) : (
+                                <>
+                                  Requires a{' '}
+                                  <a href="https://claude.ai" target="_blank" rel="noopener" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Claude Pro or Max</a>{' '}
+                                  account. If you haven't installed Claude Code yet, paste this:
+                                </>
+                              )}
+                            </div>
+                            <div
+                              onClick={() => {
+                                const cmd = selectedModel === 'mistral'
+                                  ? 'npm install -g @mistralai/mistralai'
+                                  : 'npm install -g @anthropic-ai/claude-code';
+                                navigator.clipboard.writeText(cmd + '\n');
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                              }}
+                              style={{
+                                width: '100%', padding: '10px 12px',
+                                background: 'var(--bg-code)', border: '1px solid var(--border-subtle)',
+                                borderRadius: 8, cursor: 'pointer',
+                                fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)',
+                                lineHeight: 1.6, wordBreak: 'break-all',
+                                display: 'flex', alignItems: 'flex-start', gap: 8,
+                              }}
+                            >
+                              <span style={{ flex: 1 }}>
+                                <span style={{ color: 'var(--text-muted)' }}>$</span>{' '}
+                                {selectedModel === 'mistral' ? 'npm install -g @mistralai/mistralai' : 'npm install -g @anthropic-ai/claude-code'}
+                              </span>
+                              <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: copied ? 'var(--success)' : 'var(--accent)', display: 'flex', flexShrink: 0 }} title="Copy">
+                                {copied ? (
+                                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                ) : (
+                                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><path d="M3 11V3.5A.5.5 0 0 1 3.5 3H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>3</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Paste this command and press Enter</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>
+                              This installs everything Hemingweight needs to run on your computer. It takes about a minute.
+                            </div>
+                            <div
+                              onClick={() => {
+                                navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash\n');
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                              }}
+                              style={{
+                                width: '100%', padding: '10px 12px',
+                                background: 'var(--bg-code)', border: '1px solid var(--border-subtle)',
+                                borderRadius: 8, cursor: 'pointer',
+                                fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-tertiary)',
+                                lineHeight: 1.6, wordBreak: 'break-all',
+                                display: 'flex', alignItems: 'flex-start', gap: 8,
+                              }}
+                            >
+                              <span style={{ flex: 1 }}>
+                                <span style={{ color: 'var(--text-muted)' }}>$</span>{' '}
+                                curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash
+                              </span>
+                              <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: copied ? 'var(--success)' : 'var(--accent)', display: 'flex', flexShrink: 0 }} title="Copy">
+                                {copied ? (
+                                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                ) : (
+                                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3" /><path d="M3 11V3.5A.5.5 0 0 1 3.5 3H11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 0 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>4</div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>You're all set</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                              Once the install finishes in your Terminal, click{' '}
+                              <button
+                                onClick={() => setWizardStep(4)}
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '1px 8px', borderRadius: 4,
+                                  background: 'var(--accent)', color: '#fff',
+                                  fontSize: 12, fontWeight: 600,
+                                  border: 'none', cursor: 'pointer',
+                                  lineHeight: 'inherit', fontFamily: 'inherit',
+                                }}
+                              >
+                                Done
+                              </button>.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 400, marginTop: 24 }}>
+                        <button
+                          className="btn-ghost"
+                          onClick={() => setWizardStep(2)}
+                          style={{ padding: '4px 10px', fontSize: 12, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        >
+                          Back
+                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[1, 2, 3, 4].map(n => (
+                            <div key={n} style={{
+                              width: 6, height: 6, borderRadius: '50%',
+                              background: wizardStep === n ? 'var(--accent)' : 'var(--border-subtle)',
+                              transition: 'background 0.2s',
+                            }} />
+                          ))}
+                        </div>
+                        <span style={{ padding: '4px 10px', fontSize: 12, visibility: 'hidden' }}>Back</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      flex: 1,
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'flex-start',
+                      padding: '120px 24px 32px', textAlign: 'center',
+                    }}>
+                      <img src="/logo.png" alt="" style={{ width: 48, height: 48, marginBottom: 16 }} />
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+                        All set
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}>
+                        Welcome to{' '}
+                        <span style={{ color: 'var(--accent)' }}>Hemingweight.</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 360, marginBottom: 20 }}>
+                        You are all set. Type what you want to build on the panel on the right{' '}
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ display: 'inline', verticalAlign: 'middle', color: 'var(--accent)' }}>
+                          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        {' '}or open an existing project.
+                      </div>
+
+                      <button
+                        onClick={() => { setForceTestPage5(false); }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 10,
+                          padding: '10px 18px', borderRadius: 8,
+                          background: 'var(--bg-code)',
+                          border: '1px solid var(--border-subtle)',
+                          color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'border-color 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                          <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="var(--accent)" strokeWidth="1.4" />
+                        </svg>
+                        Browse existing projects
+                      </button>
+
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 28 }}>
+                        {[1, 2, 3, 4].map(n => (
+                          <div key={n} style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: wizardStep === n ? 'var(--accent)' : 'var(--border-subtle)',
+                            transition: 'background 0.2s',
+                          }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                ) :
                 forceTestPage4 ? (
                 /* test-page4 — 3-step wizard */
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -831,7 +1367,7 @@ function App() {
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Open Terminal</div>
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                              On Mac: press <strong style={{ color: 'var(--text-primary)' }}>Cmd + Space</strong>, type <strong style={{ color: 'var(--text-primary)' }}>Terminal</strong>, and hit Enter.
+                              Press <strong style={{ color: 'var(--text-primary)' }}>Cmd + Space</strong>, type <strong style={{ color: 'var(--text-primary)' }}>Terminal</strong>, and hit Enter.
                             </div>
                           </div>
                         </div>
@@ -846,7 +1382,7 @@ function App() {
                             </div>
                             <div
                               onClick={() => {
-                                navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash');
+                                navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash\n');
                                 setCopied(true);
                                 setTimeout(() => setCopied(false), 2000);
                               }}
@@ -887,57 +1423,73 @@ function App() {
                     )}
 
                     {wizardStep === 3 && (
-                      <>
+                      <div style={{ maxWidth: 380, margin: '0 auto' }}>
                         <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}>
-                          You're{' '}
-                          <span style={{ color: 'var(--accent)' }}>ready to build.</span>
+                          Where should your{' '}
+                          <span style={{ color: 'var(--accent)' }}>projects live?</span>
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 340, margin: '0 auto 28px' }}>
-                          Type what you want in the panel on the right to start a new project, or open an existing one below.
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, margin: '0 auto 22px' }}>
+                          Pick a root folder on your Mac. Every project you build with Hemingweight will be saved here — you can change it later.
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300, margin: '0 auto' }}>
+                        {editingPath ? (
+                          <FolderPicker
+                            currentPath={projectsDir}
+                            onSelect={(p) => { setSettingsDir(p); saveSettingsDir(); setEditingPath(false); }}
+                            onCancel={() => setEditingPath(false)}
+                          />
+                        ) : (
                           <button
-                            className="btn-ghost"
-                            onClick={() => { setForceTestPage4(false); }}
+                            onClick={() => setEditingPath(true)}
                             style={{
-                              width: '100%', padding: '10px', borderRadius: 8,
-                              fontSize: 13, color: 'var(--text-tertiary)',
+                              width: '100%', padding: '14px 16px', borderRadius: 10,
+                              background: 'var(--bg-code)',
                               border: '1px solid var(--border-subtle)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              cursor: 'pointer', textAlign: 'left',
+                              transition: 'border-color 0.15s, background 0.15s',
                             }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
                           >
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.5 }}>
-                              <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
-                            </svg>
-                            Open existing project
+                            <div style={{
+                              width: 36, height: 36, borderRadius: 8,
+                              background: 'var(--accent-bg-strong)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                            }}>
+                              <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="var(--accent)" strokeWidth="1.4" />
+                              </svg>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>
+                                Root folder
+                              </div>
+                              <div style={{
+                                fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                                {projectsDir}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
+                              Change
+                            </span>
                           </button>
-                        </div>
+                        )}
 
-                        <div style={{ position: 'relative', marginTop: 24 }}>
-                          <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                            Projects saved to{' '}
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{projectsDir}</span>
-                            {' · '}
+                        {!editingPath && (
+                          <div style={{ textAlign: 'center', marginTop: 24 }}>
                             <button
-                              onClick={() => setEditingPath(!editingPath)}
-                              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 13, cursor: 'pointer', padding: 0 }}
+                              className="btn-primary"
+                              onClick={() => { setForceTestPage4(false); }}
+                              style={{ padding: '10px 36px', borderRadius: 8, fontSize: 13 }}
                             >
-                              {editingPath ? 'Close' : 'Change'}
+                              Use this folder — continue
                             </button>
                           </div>
-                          {editingPath && (
-                            <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 8, width: 300, zIndex: 10 }}>
-                              <FolderPicker
-                                compact
-                                currentPath={projectsDir}
-                                onSelect={(p) => { setSettingsDir(p); saveSettingsDir(); setEditingPath(false); }}
-                                onCancel={() => setEditingPath(false)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -987,13 +1539,9 @@ function App() {
                       {
                         key: 'mistral', name: 'Mistral', active: false,
                         icon: (
-                          <svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="0" y="0" width="4" height="4" fill="#FFD800" /><rect x="10" y="0" width="4" height="4" fill="#FFD800" /><rect x="20" y="0" width="4" height="4" fill="#FFD800" />
-                            <rect x="0" y="5" width="4" height="4" fill="#FFAF00" /><rect x="5" y="5" width="4" height="4" fill="#FFAF00" /><rect x="10" y="5" width="4" height="4" fill="#FFAF00" /><rect x="15" y="5" width="4" height="4" fill="#FFAF00" /><rect x="20" y="5" width="4" height="4" fill="#FFAF00" />
-                            <rect x="0" y="10" width="4" height="4" fill="#FF8205" /><rect x="10" y="10" width="4" height="4" fill="#FF8205" /><rect x="20" y="10" width="4" height="4" fill="#FF8205" />
-                            <rect x="0" y="15" width="4" height="4" fill="#FA500F" /><rect x="5" y="15" width="4" height="4" fill="#FA500F" /><rect x="10" y="15" width="4" height="4" fill="#FA500F" /><rect x="15" y="15" width="4" height="4" fill="#FA500F" /><rect x="20" y="15" width="4" height="4" fill="#FA500F" />
-                            <rect x="0" y="20" width="4" height="4" fill="#E10500" /><rect x="10" y="20" width="4" height="4" fill="#E10500" /><rect x="20" y="20" width="4" height="4" fill="#E10500" />
-                          </svg>
+                          <svg viewBox="0 0 24 24" width="26" height="26" fill="#a1a1aa" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.143 3.429v3.428h-3.429v3.429h-3.428V6.857H6.857V3.43H3.43v13.714H0v3.428h10.286v-3.428H6.857v-3.429h3.429v3.429h3.429v-3.429h3.428v3.429h-3.428v3.428H24v-3.428h-3.43V3.429z"/>
+                              </svg>
                         ),
                       },
                       {
@@ -1109,7 +1657,7 @@ function App() {
                         </div>
                         <div
                           onClick={() => {
-                            navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash');
+                            navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/Hemingweight/main/install-remote.sh | bash\n');
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                           }}
@@ -1878,8 +2426,26 @@ function App() {
               alignItems: 'center', justifyContent: 'center',
               gap: 0,
             }}>
-              <img src="/marlin.png" alt="" style={{ width: 400, height: 'auto', opacity: 0.85, imageRendering: 'pixelated', marginBottom: -80, marginTop: -60 }} />
+              <img src="/marlin.png" alt="" style={{ width: 400, height: 'auto', opacity: 0.85, imageRendering: 'pixelated', marginBottom: -80, marginTop: -60, pointerEvents: 'none' }} />
               {selectedProject ? (
+                isCooking ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 10,
+                      padding: '10px 20px', borderRadius: 10,
+                      background: 'var(--accent-bg-strong)',
+                      color: 'var(--accent)', fontSize: 14, fontWeight: 600,
+                    }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                        <path d="M8 2a6 6 0 1 0 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                      Cooking…
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 320, textAlign: 'center', lineHeight: 1.5 }}>
+                      Your agent is setting up the project. The preview will appear as soon as it's ready.
+                    </div>
+                  </div>
+                ) : (
                 <>
                   <button
                     onClick={launchPreview}
@@ -1913,6 +2479,7 @@ function App() {
                     </div>
                   )}
                 </>
+                )
               ) : (
                 <div style={{
                   display: 'flex', flexDirection: 'column',
@@ -1923,12 +2490,16 @@ function App() {
                     Let's build something.
                   </div>
                   <div
+                    onClick={e => {
+                      if (e.target === e.currentTarget) promptTextareaRef.current?.focus();
+                    }}
                     style={{
                       width: '100%', background: 'var(--bg-panel)',
                       border: promptHighlight ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
                       borderRadius: 8,
                       display: 'flex', flexDirection: 'column',
                       transition: 'border-color 0.3s ease',
+                      cursor: 'text',
                     }}
                     onKeyDown={e => {
                       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -1950,25 +2521,26 @@ function App() {
                         fontFamily: 'inherit',
                       }}
                     />
-                    {promptText.trim() && (
-                      <>
-                        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0 14px' }} />
-                        <div style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>~/</span>
-                          <input
-                            type="text"
-                            value={promptName}
-                            onChange={e => { setPromptName(e.target.value); setPromptNameEdited(true); }}
-                            placeholder="project-name"
-                            style={{
-                              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                              color: 'var(--text-tertiary)', fontSize: 11,
-                              fontFamily: 'var(--font-mono)',
-                            }}
-                          />
-                        </div>
-                      </>
-                    )}
+                    <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0 14px' }} />
+                    <div style={{
+                      padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6,
+                      opacity: promptText.trim() ? 1 : 0.5,
+                      transition: 'opacity 0.15s',
+                    }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>~/</span>
+                      <input
+                        type="text"
+                        value={promptName}
+                        onChange={e => { setPromptName(e.target.value); setPromptNameEdited(true); }}
+                        placeholder="project-name"
+                        disabled={!promptText.trim()}
+                        style={{
+                          flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                          color: 'var(--text-tertiary)', fontSize: 11,
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      />
+                    </div>
                     <div style={{
                       padding: '8px 14px', display: 'flex',
                       alignItems: 'center', justifyContent: 'space-between',
@@ -1995,31 +2567,10 @@ function App() {
                   <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
                     <button
                       className="btn-ghost"
-                      onClick={() => { setForceFirstTime(true); setForceTestPage2(false); setForceTestPage3(false); setTestPage3ModelSelected(false); setSelectedProject(null); }}
+                      onClick={() => { setForceTestPage5(true); setWizardStep(1); setSelectedProject(null); }}
                       style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
                     >
-                      test-first
-                    </button>
-                    <button
-                      className="btn-ghost"
-                      onClick={() => { setForceTestPage2(true); setForceFirstTime(false); setForceTestPage3(false); setTestPage3ModelSelected(false); setSelectedProject(null); }}
-                      style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
-                    >
-                      test-page2
-                    </button>
-                    <button
-                      className="btn-ghost"
-                      onClick={() => { setForceTestPage3(true); setTestPage3ModelSelected(false); setForceFirstTime(false); setForceTestPage2(false); setSelectedProject(null); }}
-                      style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
-                    >
-                      test-page3
-                    </button>
-                    <button
-                      className="btn-ghost"
-                      onClick={() => { setForceTestPage4(true); setWizardStep(1); setForceFirstTime(false); setForceTestPage2(false); setForceTestPage3(false); setSelectedProject(null); }}
-                      style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
-                    >
-                      test-page4
+                      View: New User Pager
                     </button>
                   </div>
                 </div>
@@ -2083,35 +2634,24 @@ function App() {
                 className="menu-project-item"
                 style={{ padding: '10px 16px' }}
               >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.35 }}>
-                  <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
-                </svg>
-                <span style={{ flex: 1, fontSize: 13, color: selectedProject?.path === p.path ? 'var(--accent)' : undefined }}>{p.name}</span>
                 {selectedProject?.path === p.path ? (
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                    <path d="M3 8.5l3.5 3.5L13 4" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="var(--accent)" style={{ flexShrink: 0 }}>
+                    <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" />
                   </svg>
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="project-arrow" style={{ flexShrink: 0, opacity: 0, transition: 'opacity 0.15s' }}>
-                    <path d="M6 3l5 5-5 5" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.35 }}>
+                    <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="currentColor" strokeWidth="1.2" />
                   </svg>
                 )}
+                <span style={{ flex: 1, fontSize: 13, color: selectedProject?.path === p.path ? 'var(--accent)' : undefined }}>{p.name}</span>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="project-arrow" style={{ flexShrink: 0, opacity: 0, transition: 'opacity 0.15s' }}>
+                  <path d="M6 3l5 5-5 5" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Settings section */}
-        <div style={{ borderTop: '1px solid var(--border-color)', padding: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-            New projects root path
-          </div>
-          <FolderPicker
-            compact
-            currentPath={projectsDir}
-            onSelect={(p) => { setSettingsDir(p); saveSettingsDir(); setShowMenu(false); }}
-          />
-        </div>
       </div>
 
       {/* New Project Modal */}

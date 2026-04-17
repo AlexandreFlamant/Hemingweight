@@ -55,6 +55,87 @@ const FULL_PATH = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/
   .filter((v, i, a) => v && a.indexOf(v) === i)
   .join(':');
 
+const DETECT_PATH = FULL_PATH
+  + ':' + (process.env.HOME || '') + '/.npm-global/bin'
+  + ':' + (process.env.HOME || '') + '/.local/bin';
+
+// Supported LLM CLIs. state 'ready' = detectable; 'soon' = not wired up yet.
+const MODEL_REGISTRY = {
+  claude: {
+    name: 'Claude',
+    state: 'ready',
+    cli: 'claude',
+    candidates: [
+      '/opt/homebrew/bin/claude', '/usr/local/bin/claude',
+      path.join(os.homedir(), '.npm-global/bin/claude'),
+      path.join(os.homedir(), '.local/bin/claude'),
+    ],
+  },
+  mistral: {
+    name: 'Mistral',
+    state: 'ready',
+    cli: 'vibe',
+    candidates: [
+      '/opt/homebrew/bin/vibe', '/usr/local/bin/vibe',
+      path.join(os.homedir(), '.npm-global/bin/vibe'),
+      path.join(os.homedir(), '.local/bin/vibe'),
+    ],
+  },
+  openai: {
+    name: 'OpenAI',
+    state: 'ready',
+    cli: 'codex',
+    candidates: [
+      '/opt/homebrew/bin/codex', '/usr/local/bin/codex',
+      path.join(os.homedir(), '.npm-global/bin/codex'),
+      path.join(os.homedir(), '.local/bin/codex'),
+    ],
+  },
+  gemini: {
+    name: 'Gemini',
+    state: 'soon',
+  },
+};
+
+function resolveModelBinary(modelKey) {
+  const entry = MODEL_REGISTRY[modelKey];
+  if (!entry || entry.state !== 'ready') return null;
+  try {
+    const found = execSync(`which ${entry.cli}`, {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: DETECT_PATH },
+    }).trim();
+    if (found && fs.existsSync(found)) return found;
+  } catch {}
+  return (entry.candidates || []).find(p => fs.existsSync(p)) || null;
+}
+
+// Backwards-compatible Claude probe.
+app.get('/api/claude-installed', (req, res) => {
+  const claudePath = resolveModelBinary('claude');
+  res.json({ installed: !!claudePath, path: claudePath });
+});
+
+// Per-model install detection for the model switcher widget.
+app.get('/api/models', (req, res) => {
+  const out = {};
+  for (const [key, entry] of Object.entries(MODEL_REGISTRY)) {
+    if (entry.state === 'soon') {
+      out[key] = { name: entry.name, state: 'soon', installed: false, path: null };
+    } else {
+      const binPath = resolveModelBinary(key);
+      out[key] = {
+        name: entry.name,
+        state: 'ready',
+        installed: !!binPath,
+        path: binPath,
+        cli: entry.cli,
+      };
+    }
+  }
+  res.json(out);
+});
+
 // Health check for extension auto-launch
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -1242,18 +1323,16 @@ wss.on('connection', (ws) => {
         }
 
         try {
-          // Build claude command args
-          let claudePath;
-          try {
-            claudePath = execSync('which claude', { encoding: 'utf8', env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin:' + (process.env.HOME || '') + '/.npm-global/bin:' + (process.env.HOME || '') + '/.local/bin' } }).trim();
-          } catch {
-            // Fallback: check common install locations
-            const { existsSync } = require('fs');
-            const candidates = ['/opt/homebrew/bin/claude', '/usr/local/bin/claude', (process.env.HOME || '') + '/.npm-global/bin/claude'];
-            claudePath = candidates.find(p => existsSync(p));
-            if (!claudePath) throw new Error('Claude CLI not found. Make sure "claude" is installed and on your PATH.');
+          const requestedModel = msg.model && MODEL_REGISTRY[msg.model] ? msg.model : 'claude';
+          const modelEntry = MODEL_REGISTRY[requestedModel];
+          if (modelEntry.state !== 'ready') {
+            throw new Error(`${modelEntry.name} is not available yet.`);
           }
-          const claudeArgs = [claudePath];
+          const binPath = resolveModelBinary(requestedModel);
+          if (!binPath) {
+            throw new Error(`${modelEntry.name} CLI ("${modelEntry.cli}") not found. Make sure it is installed and on your PATH.`);
+          }
+          const claudeArgs = [binPath];
 
           // Use Python PTY bridge to get a real pseudo-terminal
           childProc = spawn('python3', [
