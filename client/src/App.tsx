@@ -2476,21 +2476,15 @@ function App() {
               const link = 'https://hemingweight.vercel.app/direct/';
               navigator.clipboard.writeText(link).then(() => {
                 setShareCopied(true);
-                setTimeout(() => setShareCopied(false), 1600);
+                setTimeout(() => setShareCopied(false), 2200);
               }).catch(() => {});
             }}
-            title={shareCopied ? 'Link copied' : 'Copy share link'}
-            style={shareCopied ? { color: 'var(--success)' } : undefined}
+            title="Share Hemingweight"
           >
-            {shareCopied ? (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M6.5 9.5L9.5 6.5M7 4l1.5-1.5a2.12 2.12 0 0 1 3 3L10 7M9 12l-1.5 1.5a2.12 2.12 0 0 1-3-3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M2.8 13.2C3 6.5 6 3.5 12.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 1l4 2.5-4 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </button>
 
           {/* Help / Docs dropdown */}
@@ -2902,6 +2896,35 @@ function App() {
               If you haven't run the command yet, the browser will show a "can't be reached" error. Run the install first, then click Launch.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Share-link copy toast */}
+      {shareCopied && (
+        <div style={{
+          position: 'fixed',
+          top: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 20000,
+          background: 'var(--bg-panel)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
+          borderRadius: 10,
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          fontSize: 13,
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          pointerEvents: 'none',
+          animation: 'hw-toast-in 0.18s ease-out',
+        }}>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--success)', flexShrink: 0 }}>
+            <path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Link to Hemingweight shared
         </div>
       )}
     </div>
