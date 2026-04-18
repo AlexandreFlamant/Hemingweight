@@ -738,6 +738,7 @@
             <span id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash</span>
           </div>
           <p>About two minutes. You'll be asked for your Mac password once, for trusting the local HTTPS certificate. Nothing leaves your laptop. The installer puts Node, Python, Git, Hemingweight, and the Claude Code CLI in place.</p>
+          <p style="font-size: 0.84rem; color: #71717a;">Already have Hemingweight? <a href="#update-help">Running this same command updates it</a>. Future updates then happen in-app with one click.</p>
         </div>
       </div>
 
@@ -803,6 +804,24 @@
             <button class="copy-btn" data-copy="log">Copy</button>
             <span id="log-cmd">tail -n 50 ~/.hemingweight/webserver.err.log</span>
           </div>
+        </div>
+      </details>
+
+      <details class="trouble-item" id="update-help">
+        <summary>Update Hemingweight to the latest version</summary>
+        <div class="body">
+          <p>If you're on a version older than 1.6.0 you won't see the in-app Update button yet. Run this one-liner once and you'll be on the latest, with auto-update working from then on:</p>
+          <div class="code-block">
+            <button class="copy-btn" data-copy="update">Copy</button>
+            <span id="update-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash</span>
+          </div>
+          <p>Same command as the first install. If Hemingweight is already in <span class="inline-code">~/Developer/hemingweight</span>, the installer detects it and runs <span class="inline-code">git pull</span> instead of a fresh clone. No data is touched.</p>
+          <p>Prefer to do it by hand?</p>
+          <div class="code-block">
+            <button class="copy-btn" data-copy="update-manual">Copy</button>
+            <span id="update-manual-cmd">bash ~/Developer/hemingweight/update.sh</span>
+          </div>
+          <p>Once you're on 1.6.0 or later, the app shows a small orange <strong>Update</strong> chip in its top toolbar whenever a new version lands. Click it, wait a few seconds, done.</p>
         </div>
       </details>
 
