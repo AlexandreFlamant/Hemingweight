@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hemingweight Web (experimental)</title>
+  <meta name="description" content="Open Hemingweight directly from the web. No extension needed.">
+  <link rel="icon" href="../logo.png">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+      background: #09090b;
+      color: #e4e4ef;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a { color: #e07a4b; text-decoration: none; }
+    a:hover { opacity: 0.85; }
+
+    nav {
+      position: sticky;
+      top: 0;
+      background: rgba(9, 9, 11, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(228, 228, 239, 0.08);
+      padding: 0 24px;
+      z-index: 10;
+    }
+
+    nav .nav-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+
+    nav .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: #e4e4ef;
+    }
+
+    nav .logo img { width: 28px; height: 28px; }
+
+    nav .exp-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #e07a4b;
+      border: 1px solid rgba(224, 122, 75, 0.4);
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-left: 6px;
+    }
+
+    nav .nav-right a {
+      color: #a1a1aa;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    main {
+      flex: 1;
+      max-width: 720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 80px 24px 64px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: clamp(1.9rem, 4vw, 2.8rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+
+    h1 span { color: #e07a4b; }
+
+    .subtitle {
+      font-size: 1.05rem;
+      color: #a1a1aa;
+      margin-bottom: 48px;
+    }
+
+    .status-card {
+      background: rgba(228, 228, 239, 0.04);
+      border: 1px solid rgba(228, 228, 239, 0.1);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+      text-align: left;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.checking { background: #a1a1aa; animation: pulse 1.2s infinite; }
+    .status-dot.online { background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.5); }
+    .status-dot.offline { background: #f87171; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    .status-label {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .status-detail {
+      color: #a1a1aa;
+      font-size: 0.9rem;
+      margin-left: 22px;
+    }
+
+    .btn {
+      display: inline-block;
+      background: #e07a4b;
+      color: #09090b;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 36px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      font-family: inherit;
+    }
+
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(224, 122, 75, 0.3); opacity: 1; color: #09090b; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-secondary {
+      display: inline-block;
+      background: transparent;
+      color: #e4e4ef;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 13px 32px;
+      border-radius: 10px;
+      border: 1px solid rgba(228, 228, 239, 0.2);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      font-family: inherit;
+      text-decoration: none;
+    }
+
+    .btn-secondary:hover { background: rgba(228, 228, 239, 0.06); border-color: rgba(228, 228, 239, 0.3); color: #e4e4ef; opacity: 1; }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .install-block {
+      margin-top: 48px;
+      text-align: left;
+    }
+
+    .install-block h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #e4e4ef;
+    }
+
+    .code-block {
+      background: #0a0a0f;
+      border: 1px solid rgba(228, 228, 239, 0.1);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      font-size: 0.82rem;
+      color: #d4d4d8;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(228, 228, 239, 0.08);
+      border: 1px solid rgba(228, 228, 239, 0.12);
+      color: #a1a1aa;
+      font-size: 0.75rem;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .copy-btn:hover { background: rgba(228, 228, 239, 0.14); color: #e4e4ef; }
+
+    .note {
+      margin-top: 32px;
+      padding: 16px 20px;
+      background: rgba(224, 122, 75, 0.08);
+      border: 1px solid rgba(224, 122, 75, 0.2);
+      border-radius: 10px;
+      font-size: 0.88rem;
+      color: #e4e4ef;
+      text-align: left;
+    }
+
+    .note strong { color: #e07a4b; }
+
+    footer {
+      border-top: 1px solid rgba(228, 228, 239, 0.08);
+      padding: 24px;
+      text-align: center;
+      font-size: 0.82rem;
+      color: #71717a;
+    }
+
+    footer a { color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="logo">
+        <img src="../logo.png" alt="Hemingweight logo">
+        Hemingweight
+        <span class="exp-badge">Experimental</span>
+      </a>
+      <div class="nav-right">
+        <a href="/">Back to home</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Hemingweight <span>on the web</span></h1>
+    <p class="subtitle">A preview of running Hemingweight straight from a URL, no Chrome extension required. Your code still runs entirely on your machine.</p>
+
+    <div class="status-card">
+      <div class="status-row">
+        <span id="status-dot" class="status-dot checking"></span>
+        <span id="status-label" class="status-label">Checking for local Hemingweight server...</span>
+      </div>
+      <div id="status-detail" class="status-detail">Trying https://localhost:3457, then http://localhost:3456</div>
+      <div id="status-transport" class="status-detail" style="display: none;"></div>
+    </div>
+
+    <div class="actions">
+      <button id="launch-btn" class="btn" disabled>Launch Hemingweight</button>
+      <a href="#install" class="btn-secondary">Install instructions</a>
+    </div>
+
+    <div class="note">
+      <strong>Heads up.</strong> This is a proof of concept. The page detects your local server and hands you off to it. Two transports are supported: <code>https://localhost:3457</code> (needs <code>dev-https-setup.sh</code> and works on HTTPS Vercel without mixed-content issues) and <code>http://localhost:3456</code> (the legacy extension flow). Whichever is reachable first wins.
+    </div>
+
+    <div class="install-block" id="install">
+      <h3>First time? Install Hemingweight with one command.</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyInstall()">Copy</button>
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash</code>
+      </div>
+      <p style="color: #a1a1aa; font-size: 0.85rem; margin-top: 12px;">
+        Installs Node, Python, Git, Claude Code, and the Hemingweight server. Takes about two minutes.
+      </p>
+    </div>
+  </main>
+
+  <footer>
+    <a href="/">Hemingweight</a> - experimental web entry
+  </footer>
+
+  <script>
+    // Try HTTPS first (preferred: no mixed-content issues from Vercel), fall back
+    // to HTTP for machines where dev-https-setup.sh hasn't been run yet.
+    const TRANSPORTS = [
+      { label: 'HTTPS', url: 'https://localhost:3457' },
+      { label: 'HTTP',  url: 'http://localhost:3456'  },
+    ];
+    const TOKEN_KEY = 'hemingweight.installToken';
+
+    const dot = document.getElementById('status-dot');
+    const label = document.getElementById('status-label');
+    const detail = document.getElementById('status-detail');
+    const transportDetail = document.getElementById('status-transport');
+    const launchBtn = document.getElementById('launch-btn');
+
+    let activeTransport = null;
+
+    async function probe(transport) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      try {
+        const res = await fetch(transport.url + '/api/health', {
+          signal: controller.signal,
+          cache: 'no-store',
+          mode: 'cors',
+        });
+        if (!res.ok) throw new Error('bad status ' + res.status);
+        const data = await res.json();
+        if (data.status !== 'ok') throw new Error('unexpected payload');
+        if (data.token) {
+          try { localStorage.setItem(TOKEN_KEY, data.token); } catch {}
+        }
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err };
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function checkServer() {
+      for (const transport of TRANSPORTS) {
+        const result = await probe(transport);
+        if (result.ok) { setOnline(transport); return; }
+      }
+      setOffline();
+    }
+
+    function setOnline(transport) {
+      activeTransport = transport;
+      dot.classList.remove('checking', 'offline');
+      dot.classList.add('online');
+      label.textContent = 'Local server detected';
+      detail.textContent = 'Ready at ' + transport.url;
+      transportDetail.style.display = 'block';
+      transportDetail.textContent = 'Transport: ' + transport.label +
+        (transport.label === 'HTTP' ? ' (HTTPS not configured, run dev-https-setup.sh to upgrade)' : '');
+      launchBtn.disabled = false;
+      launchBtn.textContent = 'Launch Hemingweight';
+    }
+
+    function setOffline() {
+      activeTransport = null;
+      dot.classList.remove('checking', 'online');
+      dot.classList.add('offline');
+      label.textContent = 'Local server not reachable';
+      detail.textContent = 'Install Hemingweight below, then refresh.';
+      transportDetail.style.display = 'none';
+      launchBtn.disabled = true;
+      launchBtn.textContent = 'Server needed to launch';
+    }
+
+    launchBtn.addEventListener('click', () => {
+      if (activeTransport) window.location.href = activeTransport.url;
+    });
+
+    function copyInstall() {
+      const cmd = document.getElementById('install-cmd').textContent.trim();
+      navigator.clipboard.writeText(cmd).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      });
+    }
+
+    checkServer();
+    // Re-check every 4s so if the user starts the server, the page updates without a manual reload.
+    setInterval(checkServer, 4000);
+  </script>
+</body>
+</html>

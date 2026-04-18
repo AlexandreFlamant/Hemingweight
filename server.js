@@ -1,11 +1,13 @@
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const httpProxy = require('http-proxy');
 const WebSocket = require('ws');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Prevent uncaught errors from crashing the server
 process.on('uncaughtException', (err) => {
@@ -24,6 +26,35 @@ const fileWss = new WebSocket.Server({ noServer: true });
 app.use(express.static(path.join(__dirname, 'client/dist')));
 app.use('/site', express.static(path.join(__dirname, 'site')));
 app.use(express.json());
+
+// ── Origin allowlist + per-install token (web-entry flow) ──────────────────
+// Browser requests from https://hemingweight.vercel.app reach this server over
+// CORS + Private Network Access. The existing extension flow is same-origin
+// (its pages load from http://localhost:3456 directly) so it is unaffected.
+const ALLOWED_ORIGINS = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+  /^https:\/\/hemingweight\.vercel\.app$/,
+  /^https:\/\/.*\.hemingweight\.vercel\.app$/,
+  /^chrome-extension:\/\/oppghhmjfjibmjjbpchmhheelfcnbboo$/,
+];
+function isAllowedOrigin(origin) {
+  return !!origin && ALLOWED_ORIGINS.some(re => re.test(origin));
+}
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Hemingweight-Token');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    res.setHeader('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 
 const PTY_BRIDGE = path.join(__dirname, 'pty-bridge.py');
 
@@ -48,6 +79,17 @@ function getProjectsDir() {
   const config = readConfig();
   return config.projectsDir || path.join(os.homedir(), 'Developer');
 }
+
+function getOrCreateInstallToken() {
+  const cfg = readConfig();
+  if (cfg.installToken && typeof cfg.installToken === 'string' && cfg.installToken.length >= 32) {
+    return cfg.installToken;
+  }
+  const token = crypto.randomBytes(24).toString('hex');
+  writeConfig({ ...cfg, installToken: token });
+  return token;
+}
+const INSTALL_TOKEN = getOrCreateInstallToken();
 
 // Ensure common binary paths are available (native host may launch with a minimal PATH)
 const FULL_PATH = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin']
@@ -136,9 +178,14 @@ app.get('/api/models', (req, res) => {
   res.json(out);
 });
 
-// Health check for extension auto-launch
+// Health check for extension auto-launch and web-entry handshake.
+// Token is only revealed when the origin is already allow-listed (which would
+// otherwise be enforced by the browser via CORS). Defense in depth.
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  const origin = req.headers.origin;
+  const payload = { status: 'ok' };
+  if (isAllowedOrigin(origin)) payload.token = INSTALL_TOKEN;
+  res.json(payload);
 });
 
 // Docs page — renders README.md as a wiki-style page
@@ -1496,28 +1543,35 @@ app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/dist/index.html'));
 });
 
-// Route ALL WebSocket upgrades explicitly
-server.on('upgrade', (req, socket, head) => {
+// Route ALL WebSocket upgrades explicitly. Shared between HTTP and HTTPS
+// listeners below so both flows see the same authorization checks.
+function handleUpgrade(req, socket, head) {
   const url = new URL(req.url, 'http://localhost');
+  const origin = req.headers.origin;
 
-  if (url.pathname === '/ws') {
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit('connection', ws, req);
-    });
-  } else if (url.pathname === '/ws/files') {
-    fileWss.handleUpgrade(req, socket, head, (ws) => {
-      fileWss.emit('connection', ws, req);
-    });
-  } else {
-    // Proxy to preview dev server (HMR)
-    const entry = [...previewServers.values()][0];
-    if (entry && entry.port) {
-      proxy.ws(req, socket, head, { target: `http://127.0.0.1:${entry.port}` });
-    } else {
+  if (url.pathname === '/ws' || url.pathname === '/ws/files') {
+    const tokenFromQuery = url.searchParams.get('token');
+    const authorized = isAllowedOrigin(origin) || tokenFromQuery === INSTALL_TOKEN;
+    if (!authorized) {
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
+      return;
     }
+    const target = url.pathname === '/ws' ? wss : fileWss;
+    target.handleUpgrade(req, socket, head, (ws) => target.emit('connection', ws, req));
+    return;
   }
-});
+
+  // Proxy to preview dev server (HMR)
+  const entry = [...previewServers.values()][0];
+  if (entry && entry.port) {
+    proxy.ws(req, socket, head, { target: `http://127.0.0.1:${entry.port}` });
+  } else {
+    socket.destroy();
+  }
+}
+
+server.on('upgrade', handleUpgrade);
 
 // Clean up preview servers on exit
 process.on('SIGTERM', () => { killAllPreviews(); process.exit(0); });
@@ -1527,3 +1581,34 @@ const PORT = process.env.PORT || 3456;
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Hemingweight running at http://localhost:${PORT}`);
 });
+
+// ── Optional HTTPS listener for the web-entry flow ──────────────────────────
+// Loaded only if a local cert exists at ~/.hemingweight/certs/ (populated by
+// dev-https-setup.sh). The extension flow on :3456 is untouched regardless.
+const TLS_CERT_DIR = path.join(CONFIG_DIR, 'certs');
+const TLS_CERT_PATH = path.join(TLS_CERT_DIR, 'localhost.pem');
+const TLS_KEY_PATH = path.join(TLS_CERT_DIR, 'localhost-key.pem');
+const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 3457;
+
+function tryLoadTlsOptions() {
+  try {
+    if (fs.existsSync(TLS_CERT_PATH) && fs.existsSync(TLS_KEY_PATH)) {
+      return { cert: fs.readFileSync(TLS_CERT_PATH), key: fs.readFileSync(TLS_KEY_PATH) };
+    }
+  } catch (err) {
+    console.warn('Failed to load TLS cert:', err.message);
+  }
+  return null;
+}
+
+const tlsOpts = tryLoadTlsOptions();
+if (tlsOpts) {
+  const httpsServer = https.createServer(tlsOpts, app);
+  httpsServer.on('upgrade', handleUpgrade);
+  httpsServer.on('error', (err) => console.error('HTTPS server error:', err.message));
+  httpsServer.listen(HTTPS_PORT, '127.0.0.1', () => {
+    console.log(`Hemingweight (HTTPS) running at https://localhost:${HTTPS_PORT}`);
+  });
+} else {
+  console.log(`HTTPS disabled: no cert at ${TLS_CERT_PATH} (run ./dev-https-setup.sh to enable)`);
+}
