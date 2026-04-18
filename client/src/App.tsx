@@ -429,7 +429,7 @@ function App() {
     return () => timers.forEach(clearTimeout);
   }, [chatOpen, selectedModel]);
 
-  const connectToProject = useCallback((project: Project) => {
+  const connectToProject = useCallback((project: Project, modelOverride?: ModelKey) => {
     if (selectedProject && selectedProject.path !== project.path) {
       fetch(`/api/preview/stop-all`, { method: 'POST' }).catch(() => {});
       setPreviewRunning(false);
@@ -465,7 +465,8 @@ function App() {
       setStatus('running');
       const cols = term?.cols || 120;
       const rows = term?.rows || 40;
-      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows, model: selectedModelRef.current }));
+      const modelToStart = modelOverride || selectedModelRef.current;
+      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows, model: modelToStart }));
 
       if (pendingPromptRef.current) {
         const prompt = pendingPromptRef.current;
@@ -1120,7 +1121,7 @@ function App() {
                           <button
                             key={m.key}
                             disabled={!m.active}
-                            onClick={() => { if (m.active) { setSelectedModel(m.key as 'claude' | 'mistral' | 'openai' | 'gemini'); setWizardStep(3); } }}
+                            onClick={() => { if (m.active) { const key = m.key as 'claude' | 'mistral' | 'openai' | 'gemini'; setSelectedModel(key); selectedModelRef.current = key; try { localStorage.setItem('hw.selectedModel', key); } catch {}; setWizardStep(3); } }}
                             style={{
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
                               padding: '16px 8px',
@@ -1476,7 +1477,7 @@ function App() {
                               <button
                                 key={m.key}
                                 className="btn-ghost"
-                                onClick={() => { setSelectedModel(m.key); setWizardStep(2); }}
+                                onClick={() => { setSelectedModel(m.key); selectedModelRef.current = m.key; try { localStorage.setItem('hw.selectedModel', m.key); } catch {}; setWizardStep(2); }}
                                 style={{
                                   flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
                                   border: isSelected ? `1px solid ${m.color}` : '1px solid var(--border-subtle)',
@@ -2363,8 +2364,9 @@ function App() {
                 onSwitch={(key) => {
                   setSelectedModel(key);
                   selectedModelRef.current = key;
+                  try { localStorage.setItem('hw.selectedModel', key); } catch {}
                   setShowModelDropdown(false);
-                  if (selectedProject) connectToProject(selectedProject);
+                  if (selectedProject) connectToProject(selectedProject, key);
                 }}
                 onInstall={(key) => {
                   setSelectedModel(key);
