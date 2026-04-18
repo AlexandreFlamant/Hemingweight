@@ -770,7 +770,7 @@ function App() {
                         <span style={{ color: 'var(--accent)' }}>machine.</span>
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 360, marginBottom: 20 }}>
-                        Hemingweight runs locally. No cloud, no lock-in. Every project is saved as real files in a folder you choose, yours to edit, version, and keep.
+                        Hemingweight is an open AI coding environment. Describe what you want built, the agent writes the code, the preview updates live. Everything runs on your machine. No cloud, no lock-in. Every project is saved as real files in a folder you choose, yours to edit, version, and keep.
                       </div>
 
                       <div style={{ width: '100%', maxWidth: 380 }}>
