@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hemingweight - Claude Code in your browser</title>
-  <meta name="description" content="Describe what you want built in plain English and watch Claude write the code. Runs entirely on your machine. No extension required.">
+  <title>Hemingweight - Describe it. Watch it get built.</title>
+  <meta name="description" content="Local-first IDE powered by AI. Bring your own model: Claude, Mistral, or OpenAI. Your code, your keys, your machine. No Chrome extension required.">
   <link rel="icon" href="logo.png">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -286,6 +286,67 @@
       opacity: 1;
     }
 
+    /* ---- MODELS STRIP ---- */
+    .models {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 16px;
+    }
+    .model-strip {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .model-strip-label {
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #e07a4b;
+      margin-bottom: 14px;
+    }
+    .model-strip-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .model-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(228, 228, 239, 0.16);
+      background: rgba(228, 228, 239, 0.04);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e4e4ef;
+    }
+    .model-pill svg { width: 16px; height: 16px; color: #e4e4ef; }
+    .model-pill.active {
+      border-color: rgba(224, 122, 75, 0.4);
+      background: rgba(224, 122, 75, 0.08);
+    }
+    .model-pill.active svg { color: #e07a4b; }
+    .model-pill.soon {
+      opacity: 0.5;
+    }
+    .soon-badge {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #e07a4b;
+      background: rgba(224, 122, 75, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .model-strip-note {
+      font-size: 0.82rem;
+      color: #a1a1aa;
+    }
+
     /* ---- VALUE PROPS ---- */
     .values {
       padding: 48px 24px 24px;
@@ -514,8 +575,8 @@
   <main id="top">
 
     <section class="hero">
-      <h1>Claude Code <span>in your browser</span></h1>
-      <p class="lead">Describe what you want built. Watch Claude write the code. Everything runs locally on your machine, your files never leave your laptop.</p>
+      <h1>Describe it. <span>Watch it get built.</span></h1>
+      <p class="lead">A local, open-source IDE powered by AI. Type what you want, the agent writes the code, the preview updates live. Bring your own model: Claude, Mistral, or OpenAI. Your files, your keys, your Mac.</p>
 
       <div class="status-card">
         <div class="status-row">
@@ -552,19 +613,43 @@
       </div>
     </section>
 
-    <section class="values">
+    <section class="models" id="models">
+      <div class="model-strip">
+        <div class="model-strip-label">Bring your own model</div>
+        <div class="model-strip-row">
+          <div class="model-pill active" title="Claude by Anthropic">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.788 2.628a1.64 1.64 0 0 0-2.14.866l-5.99 13.982a1.64 1.64 0 0 0 .866 2.14 1.64 1.64 0 0 0 2.14-.866l5.99-13.982a1.64 1.64 0 0 0-.866-2.14M8.212 2.628a1.64 1.64 0 0 1 2.14.866l5.99 13.982a1.64 1.64 0 0 1-.866 2.14 1.64 1.64 0 0 1-2.14-.866L7.346 4.768a1.64 1.64 0 0 1 .866-2.14"/></svg>
+            <span>Claude</span>
+          </div>
+          <div class="model-pill active" title="Mistral">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="4" width="4" height="16"/><rect x="9" y="4" width="4" height="9"/><rect x="15" y="4" width="4" height="16"/></svg>
+            <span>Mistral</span>
+          </div>
+          <div class="model-pill active" title="OpenAI">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494z"/></svg>
+            <span>OpenAI</span>
+          </div>
+          <div class="model-pill soon" title="Gemini">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg>
+            <span>Gemini</span>
+            <span class="soon-badge">soon</span>
+          </div>
+        </div>
+        <div class="model-strip-note">Use your own account with any provider. You pay them directly, no markup from us.</div>
+      </div>
+
       <div class="values-grid">
         <div class="value-card">
-          <h3>Local by design</h3>
-          <p>Your code, your API keys, and your files stay on your Mac. No servers, no sync, nothing to sign up for.</p>
+          <h3>Your code, your keys</h3>
+          <p>Everything runs on your Mac. Your files, your API credentials, and your prompts never touch our servers. You pay the AI provider directly, we are never in the middle.</p>
         </div>
         <div class="value-card">
           <h3>Browser, not extension</h3>
-          <p>Open this page, click Launch. No Chrome extension to install, no Developer Mode, nothing to load unpacked.</p>
+          <p>Open this page, click Launch. No Chrome extension to install, no Developer Mode, nothing to load unpacked. Works in Chrome, Brave, Arc, or Edge.</p>
         </div>
         <div class="value-card">
           <h3>Open source</h3>
-          <p>MIT-licensed. Fork it, audit it, or contribute on GitHub. The server you run locally is the same code you can read.</p>
+          <p>MIT-licensed and auditable end to end. The server you run locally is the same code you can read on <a href="https://github.com/AlexandreFlamant/hemingweight" target="_blank" rel="noopener">GitHub</a>. Fork it, patch it, break it.</p>
         </div>
       </div>
     </section>
@@ -591,7 +676,17 @@
         <div class="step-num">2</div>
         <div class="step-body">
           <h4>Wait for the install to finish</h4>
-          <p>About two minutes. The installer puts Node, Python, Git, Claude Code, and Hemingweight in place, registers an auto-start for the server, and generates a local TLS cert.</p>
+          <p>About two minutes. The installer puts Node, Python, Git, Hemingweight, and the Claude Code CLI in place, registers an auto-start for the server, and generates a local TLS cert.</p>
+          <p>Prefer Mistral or OpenAI? Install them alongside in the same Terminal, no re-setup needed:</p>
+          <div class="code-block">
+            <button class="copy-btn" data-copy="models">Copy</button>
+            <span id="models-cmd"># Mistral CLI
+npm install -g @mistralai/mistralai
+
+# OpenAI Codex CLI
+npm install -g @openai/codex</span>
+          </div>
+          <p>You can switch models inside Hemingweight at any time. The installed CLIs light up automatically.</p>
         </div>
       </div>
 
@@ -599,7 +694,7 @@
         <div class="step-num">3</div>
         <div class="step-body">
           <h4>Refresh this page, then click Launch</h4>
-          <p>The status indicator at the top will flip from red to green as soon as your local server is reachable. Click <strong>Launch Hemingweight</strong> and you're in.</p>
+          <p>The status indicator at the top will flip from red to green as soon as your local server is reachable. Click <strong>Launch Hemingweight</strong>, pick your model on first open, paste the matching API key (or sign in), and you're in.</p>
           <p>On the very first launch, your browser may ask whether this page is allowed to talk to your local network. Click <strong>Allow</strong>. If you miss the prompt or click Block by mistake, <a href="#pna-help">here's how to fix it</a>.</p>
         </div>
       </div>
@@ -678,9 +773,9 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
     <section class="how">
       <div class="section-label">Under the hood</div>
       <h2>How it works</h2>
-      <p class="body">Hemingweight is a small Node.js server that runs on your Mac. It serves a React-based UI and spawns Claude Code in a real terminal via a Python PTY bridge. When you describe what you want built, Claude Code reads and writes files in <span class="inline-code">~/Developer</span>, runs your dev server, and hands you a live preview.</p>
-      <p class="body">This page is a thin entry point. It detects the local server over HTTPS on port 3457 (or HTTP on 3456 for legacy setups), and hands you off. Nothing about your session, your code, or your prompts ever touches our servers. Claude Code talks to Anthropic's API the same way the CLI does, using your own key or subscription.</p>
-      <p class="body">All the code is on <a href="https://github.com/AlexandreFlamant/hemingweight" target="_blank" rel="noopener">GitHub</a>. Issues, pull requests, and feedback welcome.</p>
+      <p class="body">Hemingweight is a small Node.js server that runs on your Mac. It serves a React-based UI and spawns whichever AI coding CLI you've configured (Claude Code, Mistral's <span class="inline-code">vibe</span>, OpenAI's <span class="inline-code">codex</span>) in a real terminal via a Python PTY bridge. When you describe what you want built, the agent reads and writes files in your projects folder, runs your dev server, and hands you a live preview.</p>
+      <p class="body">This page is a thin entry point. It detects the local server over HTTPS on port 3457 (or HTTP on 3456 for legacy setups), and hands you off. Nothing about your session, your code, or your prompts ever touches our servers. The AI CLI talks to its provider (Anthropic, Mistral, OpenAI) using your own key or subscription, the same way the CLI does on the command line.</p>
+      <p class="body">All the code is on <a href="https://github.com/AlexandreFlamant/hemingweight" target="_blank" rel="noopener">GitHub</a>. Issues, pull requests, and model integrations welcome.</p>
     </section>
 
   </main>
