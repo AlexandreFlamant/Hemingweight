@@ -171,6 +171,7 @@ function App() {
   const [availableModels, setAvailableModels] = useState<ModelsMap>({});
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [editingPath, setEditingPath] = useState(false);
   const [promptHighlight, setPromptHighlight] = useState(false);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -2464,6 +2465,32 @@ function App() {
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
+          </button>
+
+          {/* Share: copies the /direct URL to clipboard so the user can send
+              it to a friend. Works whether the user is in demo mode or the
+              real app; the link is always the Vercel /direct entry. */}
+          <button
+            className="btn-icon"
+            onClick={() => {
+              const link = 'https://hemingweight.vercel.app/direct/';
+              navigator.clipboard.writeText(link).then(() => {
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 1600);
+              }).catch(() => {});
+            }}
+            title={shareCopied ? 'Link copied' : 'Copy share link'}
+            style={shareCopied ? { color: 'var(--success)' } : undefined}
+          >
+            {shareCopied ? (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M6.5 9.5L9.5 6.5M7 4l1.5-1.5a2.12 2.12 0 0 1 3 3L10 7M9 12l-1.5 1.5a2.12 2.12 0 0 1-3-3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </button>
 
           {/* Help / Docs dropdown */}
