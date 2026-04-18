@@ -1,5 +1,9 @@
 {
   "buildCommand": "",
   "installCommand": "",
-  "outputDirectory": "site"
+  "outputDirectory": "site",
+  "redirects": [
+    { "source": "/test_site", "destination": "/", "permanent": false },
+    { "source": "/test_site/", "destination": "/", "permanent": false }
+  ]
 }

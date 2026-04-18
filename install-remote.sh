@@ -107,7 +107,7 @@ cd "$HEMINGWEIGHT_DIR" && bash install.sh 2>/dev/null
 echo -e "${GREEN}✅ Chrome native messaging registered${RESET}"
 
 # --- Set up web-entry flow (macOS only for now) ---
-# This lets users reach Hemingweight from https://hemingweight.vercel.app/test_site/
+# This lets users reach Hemingweight from https://hemingweight.vercel.app/
 # without installing the Chrome extension. Installs a locally-trusted TLS cert
 # and a LaunchAgent so the server is always reachable at https://localhost:3457.
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -129,7 +129,7 @@ echo ""
 echo "Two ways to open Hemingweight:"
 echo ""
 echo -e "  ${ORANGE}A. From the web (no extension needed)${RESET}"
-echo "     Open: https://hemingweight.vercel.app/test_site/"
+echo "     Open: https://hemingweight.vercel.app/"
 echo "     The page detects your local server and hands off to it."
 echo ""
 echo -e "  ${ORANGE}B. From the Chrome extension${RESET}"
