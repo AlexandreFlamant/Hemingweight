@@ -22,6 +22,16 @@ echo "Hemingweight - Dev HTTPS Setup"
 echo "==============================="
 echo ""
 
+# Fast path: cert already exists and is not expired, nothing to do.
+if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
+  if openssl x509 -in "$CERT_FILE" -checkend 2592000 -noout >/dev/null 2>&1; then
+    echo "Cert already installed at $CERT_FILE (valid for 30+ days). Skipping."
+    echo "To regenerate, delete the files in $CERT_DIR and re-run."
+    exit 0
+  fi
+  echo "Cert exists but expires soon. Regenerating..."
+fi
+
 # Step 1: ensure mkcert is installed
 if ! command -v mkcert >/dev/null 2>&1; then
   echo "mkcert not found. Installing via Homebrew..."
@@ -36,10 +46,16 @@ else
   echo "mkcert is installed ($(mkcert -version 2>/dev/null || echo 'unknown version'))."
 fi
 
-# Step 2: install local root CA (adds to system + browser trust stores)
-echo ""
-echo "Installing local root CA (you may be prompted for your password)..."
-mkcert -install
+# Step 2: install local root CA if not already trusted (system keychain check).
+CAROOT="$(mkcert -CAROOT 2>/dev/null)"
+if [ -n "$CAROOT" ] && [ -f "$CAROOT/rootCA.pem" ] \
+   && security find-certificate -c "mkcert" /Library/Keychains/System.keychain >/dev/null 2>&1; then
+  echo "Local root CA already trusted."
+else
+  echo ""
+  echo "Installing local root CA (you may be prompted for your password)..."
+  mkcert -install
+fi
 
 # Step 3: generate the cert for the two hostnames the server binds to
 mkdir -p "$CERT_DIR"

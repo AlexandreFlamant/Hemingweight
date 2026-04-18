@@ -106,18 +106,39 @@ echo -e "${DIM}Registering Chrome extension...${RESET}"
 cd "$HEMINGWEIGHT_DIR" && bash install.sh 2>/dev/null
 echo -e "${GREEN}✅ Chrome native messaging registered${RESET}"
 
+# --- Set up web-entry flow (macOS only for now) ---
+# This lets users reach Hemingweight from https://hemingweight.vercel.app/test_site/
+# without installing the Chrome extension. Installs a locally-trusted TLS cert
+# and a LaunchAgent so the server is always reachable at https://localhost:3457.
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  echo ""
+  echo -e "${ORANGE}Setting up web entry...${RESET}"
+  echo -e "${DIM}(You may be prompted for your password to trust the local HTTPS cert.)${RESET}"
+  cd "$HEMINGWEIGHT_DIR" && bash dev-https-setup.sh
+  echo -e "${GREEN}✅ Local HTTPS ready on :3457${RESET}"
+
+  echo -e "${DIM}Enabling auto-start at login...${RESET}"
+  cd "$HEMINGWEIGHT_DIR" && bash install-launch-agent.sh > /dev/null
+  echo -e "${GREEN}✅ Server will auto-start on every login${RESET}"
+fi
+
 # --- Done ---
 echo ""
 echo -e "${GREEN}🎉 Hemingweight is installed!${RESET}"
 echo ""
-echo "Next steps:"
+echo "Two ways to open Hemingweight:"
 echo ""
-echo "  1. Open Chrome"
-echo "  2. Go to chrome://extensions"
-echo "  3. Turn on \"Developer mode\" (top right toggle)"
-echo "  4. Click \"Load unpacked\""
-echo "  5. Select this folder: $HEMINGWEIGHT_DIR/extension"
-echo "  6. Click the Hemingweight extension icon and start building!"
+echo -e "  ${ORANGE}A. From the web (no extension needed)${RESET}"
+echo "     Open: https://hemingweight.vercel.app/test_site/"
+echo "     The page detects your local server and hands off to it."
+echo ""
+echo -e "  ${ORANGE}B. From the Chrome extension${RESET}"
+echo "     1. Open Chrome, go to chrome://extensions"
+echo "     2. Turn on \"Developer mode\" (top right toggle)"
+echo "     3. Click \"Load unpacked\""
+echo "     4. Select: $HEMINGWEIGHT_DIR/extension"
+echo "     5. Click the Hemingweight icon in the toolbar"
 echo ""
 echo -e "${DIM}Hemingweight installed at: $HEMINGWEIGHT_DIR${RESET}"
+echo -e "${DIM}To stop auto-start:     bash $HEMINGWEIGHT_DIR/uninstall-launch-agent.sh${RESET}"
 echo ""
