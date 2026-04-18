@@ -71,10 +71,10 @@ const MODELS: ModelMeta[] = [
   {
     key: 'gemini',
     name: 'Gemini',
-    description: 'Google\u2019s Gemini models.',
+    description: 'Google\u2019s Gemini CLI.',
     iconBg: '#1c1c1c',
     iconBorder: '1px solid var(--border-subtle)',
-    defaultState: 'soon',
+    defaultState: 'ready',
     icon: (
       <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
         <path fill="#4285F4" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z" />

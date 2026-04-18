@@ -135,7 +135,13 @@ const MODEL_REGISTRY = {
   },
   gemini: {
     name: 'Gemini',
-    state: 'soon',
+    state: 'ready',
+    cli: 'gemini',
+    candidates: [
+      '/opt/homebrew/bin/gemini', '/usr/local/bin/gemini',
+      path.join(os.homedir(), '.npm-global/bin/gemini'),
+      path.join(os.homedir(), '.local/bin/gemini'),
+    ],
   },
 };
 

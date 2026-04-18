@@ -904,10 +904,10 @@ function App() {
                             ),
                           },
                           {
-                            key: 'gemini', name: 'Gemini', active: false,
+                            key: 'gemini', name: 'Gemini', active: true,
                             icon: (
                               <svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
-                                <path fill="#a1a1aa" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z" />
+                                <path fill="#4285F4" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z" />
                               </svg>
                             ),
                           },
@@ -915,7 +915,7 @@ function App() {
                           <button
                             key={m.key}
                             disabled={!m.active}
-                            onClick={() => { if (m.active) { setSelectedModel(m.key as 'claude' | 'mistral'); setWizardStep(3); } }}
+                            onClick={() => { if (m.active) { setSelectedModel(m.key as 'claude' | 'mistral' | 'openai' | 'gemini'); setWizardStep(3); } }}
                             style={{
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
                               padding: '16px 8px',
@@ -977,7 +977,12 @@ function App() {
                         Last step
                       </div>
                       <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 28, lineHeight: 1.3 }}>
-                        Hook up <span style={{ color: 'var(--accent)' }}>{selectedModel === 'mistral' ? 'Mistral.' : 'Claude Code.'}</span>
+                        Hook up <span style={{ color: 'var(--accent)' }}>{
+                          selectedModel === 'mistral' ? 'Mistral.' :
+                          selectedModel === 'openai' ? 'OpenAI.' :
+                          selectedModel === 'gemini' ? 'Gemini.' :
+                          'Claude Code.'
+                        }</span>
                       </div>
 
                       <div style={{ width: '100%', maxWidth: 380, textAlign: 'left' }}>
@@ -998,30 +1003,27 @@ function App() {
                         <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                           <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>2</div>
                           <div style={{ flex: 1 }}>
+                            {(() => {
+                              const INSTALL_META = {
+                                claude:  { title: 'Install Claude Code',     cmd: 'npm install -g @anthropic-ai/claude-code', href: 'https://claude.ai',                        label: 'Claude Pro or Max',          suffix: 'account. If you haven\u2019t installed Claude Code yet, paste this:' },
+                                mistral: { title: 'Install the Mistral SDK', cmd: 'npm install -g @mistralai/mistralai',      href: 'https://console.mistral.ai',               label: 'Mistral API key',            suffix: 'from La Plateforme. If you haven\u2019t installed the SDK yet, paste this:' },
+                                openai:  { title: 'Install the Codex CLI',   cmd: 'npm install -g @openai/codex',              href: 'https://platform.openai.com/api-keys',     label: 'OpenAI API key',             suffix: 'from the OpenAI dashboard. If you haven\u2019t installed Codex yet, paste this:' },
+                                gemini:  { title: 'Install the Gemini CLI',  cmd: 'npm install -g @google/gemini-cli',         href: 'https://aistudio.google.com/app/apikey',   label: 'Google AI Studio API key',   suffix: 'from AI Studio. If you haven\u2019t installed the Gemini CLI yet, paste this:' },
+                              } as const;
+                              const info = INSTALL_META[selectedModel as keyof typeof INSTALL_META] || INSTALL_META.claude;
+                              return (
+                                <>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>
-                              {selectedModel === 'mistral' ? 'Install the Mistral SDK' : 'Install Claude Code'}
+                              {info.title}
                             </div>
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>
-                              {selectedModel === 'mistral' ? (
-                                <>
-                                  Requires a{' '}
-                                  <a href="https://console.mistral.ai" target="_blank" rel="noopener" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Mistral API key</a>{' '}
-                                  from La Plateforme. If you haven't installed the SDK yet, paste this:
-                                </>
-                              ) : (
-                                <>
-                                  Requires a{' '}
-                                  <a href="https://claude.ai" target="_blank" rel="noopener" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Claude Pro or Max</a>{' '}
-                                  account. If you haven't installed Claude Code yet, paste this:
-                                </>
-                              )}
+                              Requires a{' '}
+                              <a href={info.href} target="_blank" rel="noopener" style={{ color: 'var(--accent)', textDecoration: 'none' }}>{info.label}</a>{' '}
+                              {info.suffix}
                             </div>
                             <div
                               onClick={() => {
-                                const cmd = selectedModel === 'mistral'
-                                  ? 'npm install -g @mistralai/mistralai'
-                                  : 'npm install -g @anthropic-ai/claude-code';
-                                navigator.clipboard.writeText(cmd + '\n');
+                                navigator.clipboard.writeText(info.cmd + '\n');
                                 setCopied(true);
                                 setTimeout(() => setCopied(false), 2000);
                               }}
@@ -1036,7 +1038,7 @@ function App() {
                             >
                               <span style={{ flex: 1 }}>
                                 <span style={{ color: 'var(--text-muted)' }}>$</span>{' '}
-                                {selectedModel === 'mistral' ? 'npm install -g @mistralai/mistralai' : 'npm install -g @anthropic-ai/claude-code'}
+                                {info.cmd}
                               </span>
                               <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: copied ? 'var(--success)' : 'var(--accent)', display: 'flex', flexShrink: 0 }} title="Copy">
                                 {copied ? (
@@ -1046,6 +1048,9 @@ function App() {
                                 )}
                               </button>
                             </div>
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -1498,10 +1503,10 @@ function App() {
                         ),
                       },
                       {
-                        key: 'gemini', name: 'Gemini', active: false,
+                        key: 'gemini', name: 'Gemini', active: true,
                         icon: (
                           <svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
-                            <path fill="#a1a1aa" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z" />
+                            <path fill="#4285F4" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z" />
                           </svg>
                         ),
                       },

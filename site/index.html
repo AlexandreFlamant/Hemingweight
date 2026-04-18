@@ -629,10 +629,9 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494z"/></svg>
             <span>OpenAI</span>
           </div>
-          <div class="model-pill soon" title="Gemini">
+          <div class="model-pill active" title="Gemini">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg>
             <span>Gemini</span>
-            <span class="soon-badge">soon</span>
           </div>
         </div>
         <div class="model-strip-note">Use your own account with any provider. You pay them directly, no markup from us.</div>
@@ -677,14 +676,17 @@
         <div class="step-body">
           <h4>Wait for the install to finish</h4>
           <p>About two minutes. The installer puts Node, Python, Git, Hemingweight, and the Claude Code CLI in place, registers an auto-start for the server, and generates a local TLS cert.</p>
-          <p>Prefer Mistral or OpenAI? Install them alongside in the same Terminal, no re-setup needed:</p>
+          <p>Prefer Mistral, OpenAI, or Gemini? Install them alongside in the same Terminal, no re-setup needed:</p>
           <div class="code-block">
             <button class="copy-btn" data-copy="models">Copy</button>
             <span id="models-cmd"># Mistral CLI
 npm install -g @mistralai/mistralai
 
 # OpenAI Codex CLI
-npm install -g @openai/codex</span>
+npm install -g @openai/codex
+
+# Google Gemini CLI
+npm install -g @google/gemini-cli</span>
           </div>
           <p>You can switch models inside Hemingweight at any time. The installed CLIs light up automatically.</p>
         </div>
