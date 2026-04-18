@@ -22,6 +22,20 @@ interface Project {
 
 const isEmbed = new URLSearchParams(window.location.search).has('embed');
 
+// Demo mode: the same React bundle can be served from hemingweight.vercel.app/direct/
+// to give a first-time visitor a faithful preview of the app. In demo mode we skip
+// all backend fetches (they'd 404 on Vercel), force the New User Pager, and swap
+// 'real' actions (create project, pick folder) for an install prompt.
+const isDemo = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('demo')) return true;
+    const host = window.location.hostname;
+    if (host.endsWith('vercel.app') || host === 'hemingweight.com') return true;
+    return false;
+  } catch { return false; }
+})();
+
 function App() {
   const [chatOpen, setChatOpen] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -86,7 +100,8 @@ function App() {
   const [forceTestPage3] = useState(false);
   const [testPage3ModelSelected, setTestPage3ModelSelected] = useState(false);
   const [forceTestPage4, setForceTestPage4] = useState(false);
-  const [forceTestPage5, setForceTestPage5] = useState(false);
+  const [forceTestPage5, setForceTestPage5] = useState(isDemo);
+  const [demoInstallOpen, setDemoInstallOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedModel, setSelectedModel] = useState<ModelKey>(() => {
     const stored = (typeof localStorage !== 'undefined' && localStorage.getItem('hw.selectedModel')) as ModelKey | null;
@@ -119,6 +134,7 @@ function App() {
   }, [selectedModel]);
 
   const refreshAvailableModels = useCallback(() => {
+    if (isDemo) return;
     fetch('/api/models').then(r => r.json()).then((data: ModelsMap) => setAvailableModels(data)).catch(() => {});
   }, []);
   useEffect(() => { refreshAvailableModels(); }, [refreshAvailableModels]);
@@ -159,6 +175,11 @@ function App() {
 
   // Fetch settings (first-launch detection)
   useEffect(() => {
+    if (isDemo) {
+      setConfigured(true);
+      setSettingsLoaded(true);
+      return;
+    }
     fetch('/api/settings')
       .then(r => r.json())
       .then(data => {
@@ -174,6 +195,7 @@ function App() {
 
   // Fetch projects (only after setup is complete)
   useEffect(() => {
+    if (isDemo) return;
     if (!settingsLoaded || !configured) return;
     fetch('/api/projects')
       .then(r => r.json())
@@ -515,6 +537,7 @@ function App() {
   }, [setupDir]);
 
   const saveSettingsDir = useCallback(async () => {
+    if (isDemo) { setDemoInstallOpen(true); setEditingPath(false); return; }
     setSettingsDirSaving(true);
     setSettingsDirMsg('');
     try {
@@ -586,6 +609,7 @@ function App() {
 
   const handlePromptSubmit = async () => {
     if (!promptText.trim() || !promptName.trim()) return;
+    if (isDemo) { setDemoInstallOpen(true); return; }
     try {
       const resp = await fetch('/api/projects/create', {
         method: 'POST',
@@ -782,7 +806,7 @@ function App() {
                           />
                         ) : (
                           <button
-                            onClick={() => setEditingPath(true)}
+                            onClick={() => { if (isDemo) { setDemoInstallOpen(true); } else { setEditingPath(true); } }}
                             style={{
                               width: '100%', padding: '14px 16px', borderRadius: 10,
                               background: 'var(--bg-code)',
@@ -1391,7 +1415,7 @@ function App() {
                           />
                         ) : (
                           <button
-                            onClick={() => setEditingPath(true)}
+                            onClick={() => { if (isDemo) { setDemoInstallOpen(true); } else { setEditingPath(true); } }}
                             style={{
                               width: '100%', padding: '14px 16px', borderRadius: 10,
                               background: 'var(--bg-code)',
@@ -1831,7 +1855,7 @@ function App() {
                     {!editingPath ? (
                       <button
                         className="btn-ghost"
-                        onClick={() => setEditingPath(true)}
+                        onClick={() => { if (isDemo) { setDemoInstallOpen(true); } else { setEditingPath(true); } }}
                         style={{
                           width: '100%', padding: '12px 16px',
                           display: 'flex', alignItems: 'center', gap: 8,
@@ -2644,6 +2668,80 @@ function App() {
         newProjectError={newProjectError}
         createNewProject={createNewProject}
       />
+
+      {/* Demo-mode install modal: replaces actions that need the local server. */}
+      {isDemo && demoInstallOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setDemoInstallOpen(false); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10000,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div style={{
+            position: 'relative',
+            background: '#09090b',
+            border: '1px solid rgba(228,228,239,0.12)',
+            borderRadius: 14,
+            maxWidth: 520, width: '100%',
+            padding: 28, color: '#e4e4ef',
+          }}>
+            <button
+              onClick={() => setDemoInstallOpen(false)}
+              style={{
+                position: 'absolute', right: 14, top: 10,
+                background: 'transparent', border: 'none',
+                color: '#71717a', fontSize: 22, cursor: 'pointer', lineHeight: 1,
+              }}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+              Install Hemingweight to continue
+            </div>
+            <div style={{ fontSize: 14, color: '#a1a1aa', lineHeight: 1.65, marginBottom: 14 }}>
+              You're seeing a preview of the app because Hemingweight isn't running on your
+              machine yet. It runs locally. Open Terminal and paste this:
+            </div>
+            <div style={{
+              position: 'relative',
+              background: '#0a0a0f',
+              border: '1px solid rgba(228,228,239,0.1)',
+              borderRadius: 10,
+              padding: '14px 58px 14px 16px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12, color: '#d4d4d8',
+              overflowX: 'auto', whiteSpace: 'nowrap',
+            }}>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash');
+                  const t = document.getElementById('demo-install-copy');
+                  if (t) { const o = t.textContent; t.textContent = 'Copied!'; setTimeout(() => { if (o) t.textContent = o; }, 1400); }
+                }}
+                id="demo-install-copy"
+                style={{
+                  position: 'absolute', top: 8, right: 8,
+                  background: 'rgba(228,228,239,0.08)',
+                  border: '1px solid rgba(228,228,239,0.12)',
+                  color: '#a1a1aa', fontSize: 11, fontWeight: 500,
+                  padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                }}
+              >
+                Copy
+              </button>
+              curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash
+            </div>
+            <div style={{ marginTop: 14, fontSize: 13, color: '#a1a1aa', lineHeight: 1.65 }}>
+              Takes about two minutes. One Mac password prompt to trust the local HTTPS
+              cert. When it finishes, this page switches to the real app automatically.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

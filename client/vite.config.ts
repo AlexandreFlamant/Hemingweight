@@ -13,6 +13,10 @@ export default defineConfig({
       },
     },
   },
+  // Relative asset paths so the same build works at http://localhost:3456/
+  // (served by the local server) and at https://hemingweight.vercel.app/direct/
+  // (copied into site/direct/ for the demo-mode landing).
+  base: './',
   build: {
     outDir: 'dist',
   },
