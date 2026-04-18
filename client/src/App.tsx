@@ -103,24 +103,13 @@ function App() {
   const [forceTestPage5, setForceTestPage5] = useState(isDemo);
   const [demoInstallOpen, setDemoInstallOpen] = useState(false);
 
-  // Demo mode: top-level navigation to the local app. No PNA popup because
-  // navigations between origins do not go through the private-network-access
-  // check (only subresources do). URL bar changes to localhost:3457, which is
-  // accurate and matches the pattern used by Plex, Spotify, Slack, etc.
+  // Demo mode: top-level navigation to the local app. Top-level navigation
+  // skips the browser's private-network-access popup. No localStorage flag,
+  // no auto-launch on load; every visit lands on the pager, Launch always
+  // requires a click. Keeps the view faithful for first-time-visitor QA.
   const launchLocalApp = useCallback(() => {
-    try { localStorage.setItem('hw.hasInstalled', '1'); } catch {}
-    const httpsUrl = 'https://localhost:3457/?embed=1';
-    window.location.href = httpsUrl;
+    window.location.href = 'https://localhost:3457/';
   }, []);
-
-  // Auto-launch on load for returning users who have installed before. The
-  // localStorage flag is set the first time they click Launch in demo mode.
-  useEffect(() => {
-    if (!isDemo) return;
-    let stored = '';
-    try { stored = localStorage.getItem('hw.hasInstalled') || ''; } catch {}
-    if (stored === '1') launchLocalApp();
-  }, [launchLocalApp]);
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedModel, setSelectedModel] = useState<ModelKey>(() => {
     const stored = (typeof localStorage !== 'undefined' && localStorage.getItem('hw.selectedModel')) as ModelKey | null;
