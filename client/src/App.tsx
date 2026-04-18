@@ -2469,23 +2469,53 @@ function App() {
 
           {/* Share: copies the /direct URL to clipboard so the user can send
               it to a friend. Works whether the user is in demo mode or the
-              real app; the link is always the Vercel /direct entry. */}
-          <button
-            className="btn-icon"
-            onClick={() => {
-              const link = 'https://hemingweight.vercel.app/direct/';
-              navigator.clipboard.writeText(link).then(() => {
-                setShareCopied(true);
-                setTimeout(() => setShareCopied(false), 2200);
-              }).catch(() => {});
-            }}
-            title="Share Hemingweight"
-          >
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <path d="M2.8 13.2C3 6.5 6 3.5 12.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M9 1l4 2.5-4 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+              real app; the link is always the Vercel /direct entry. Toast
+              anchors below this button. */}
+          <div style={{ position: 'relative' }}>
+            <button
+              className="btn-icon"
+              onClick={() => {
+                const link = 'https://hemingweight.vercel.app/direct/';
+                navigator.clipboard.writeText(link).then(() => {
+                  setShareCopied(true);
+                  setTimeout(() => setShareCopied(false), 2200);
+                }).catch(() => {});
+              }}
+              title="Share Hemingweight"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M2.8 13.2C3 6.5 6 3.5 12.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 1l4 2.5-4 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {shareCopied && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                background: 'var(--bg-panel)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
+                borderRadius: 8,
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 500,
+                animation: 'hw-toast-in 0.18s ease-out',
+              }}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--accent)', flexShrink: 0 }}>
+                  <path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Link to Hemingweight copied
+              </div>
+            )}
+          </div>
 
           {/* Help / Docs dropdown */}
           <div ref={docsMenuRef} style={{ position: 'relative' }}>
@@ -2899,34 +2929,6 @@ function App() {
         </div>
       )}
 
-      {/* Share-link copy toast */}
-      {shareCopied && (
-        <div style={{
-          position: 'fixed',
-          top: 20,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 20000,
-          background: 'var(--bg-panel)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
-          borderRadius: 10,
-          padding: '10px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          fontSize: 13,
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          pointerEvents: 'none',
-          animation: 'hw-toast-in 0.18s ease-out',
-        }}>
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--success)', flexShrink: 0 }}>
-            <path d="M3 8.5l3.5 3.5L13 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Link to Hemingweight shared
-        </div>
-      )}
     </div>
   );
 }
