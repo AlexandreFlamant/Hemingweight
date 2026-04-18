@@ -2629,6 +2629,8 @@ function App() {
             <DocsMenu
               show={showDocsMenu}
               onClose={() => setShowDocsMenu(false)}
+              version={updateInfo}
+              onUpdate={runUpdate}
             />
           </div>
         </div>

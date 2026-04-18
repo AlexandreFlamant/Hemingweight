@@ -1,6 +1,14 @@
-function DocsMenu({ show, onClose }: {
+interface DocsMenuVersion {
+  current: string;
+  latest: string | null;
+  updateAvailable: boolean;
+}
+
+function DocsMenu({ show, onClose, version, onUpdate }: {
   show: boolean;
   onClose: () => void;
+  version?: DocsMenuVersion | null;
+  onUpdate?: () => void;
 }) {
   if (!show) return null;
 
@@ -8,7 +16,7 @@ function DocsMenu({ show, onClose }: {
     <div className="dropdown-panel" style={{
       position: 'absolute', top: '100%', right: 0,
       marginTop: 6,
-      minWidth: 220, padding: '6px',
+      minWidth: 240, padding: '6px',
     }}>
       <button
         className="dropdown-item"
@@ -39,6 +47,45 @@ function DocsMenu({ show, onClose }: {
           <path d="M6 3H3v10h10v-3M9 3h4v4M14 2L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
+
+      {version && (
+        <>
+          <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 8px' }} />
+          <div style={{
+            padding: '8px 10px 6px',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontFamily: 'var(--font-mono)',
+          }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Hemingweight</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>v{version.current}</span>
+            {version.updateAvailable && version.latest && (
+              <button
+                onClick={() => { if (onUpdate) onUpdate(); onClose(); }}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'var(--accent-bg-strong)',
+                  border: '1px solid var(--accent)',
+                  color: 'var(--accent)',
+                  padding: '2px 8px', borderRadius: 5,
+                  fontSize: 10, fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+                title={`Update to v${version.latest}`}
+              >
+                v{version.latest} available
+              </button>
+            )}
+            {!version.updateAvailable && version.latest && (
+              <span style={{ marginLeft: 'auto', color: 'var(--success)', fontSize: 10 }} title="You're on the latest">
+                latest
+              </span>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
