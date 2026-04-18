@@ -526,13 +526,14 @@
         <div id="status-transport" class="status-detail hidden"></div>
 
         <div id="perm-fix" class="perm-fix hidden">
-          <div class="perm-fix-title">Your browser may be blocking the local connection</div>
+          <div class="perm-fix-title">Can't reach your local server? Reset the browser permission.</div>
           <div class="perm-fix-body">
-            If you already installed Hemingweight but the status stays red, Chrome has probably remembered a "Block" on the private-network prompt. Reset it in three steps:
+            If you clicked <strong>Block</strong> on the "access local network" prompt (even by mistake), your browser has saved that decision and will not ask again. The fastest fix is to reset all permissions for this site:
             <ol>
               <li>Click <strong>Copy settings URL</strong> below</li>
-              <li>Paste it into Chrome's address bar and press Enter</li>
-              <li>Change <strong>Insecure private network</strong> (or <strong>Private network access</strong>) to <strong>Allow</strong>, then come back and hit <strong>Check again</strong></li>
+              <li>Paste it into your browser's address bar and press Enter</li>
+              <li>On the settings page that opens, click the <strong>Reset permissions</strong> button at the top</li>
+              <li>Come back here and hit <strong>Check again</strong>. When the prompt reappears, click <strong>Allow</strong>.</li>
             </ol>
             <div class="perm-fix-url mono" id="perm-fix-url">chrome://settings/content/siteDetails?site=https%3A%2F%2Fhemingweight.vercel.app</div>
             <div class="perm-fix-actions">
@@ -540,6 +541,7 @@
               <button class="btn-small primary" id="recheck-btn">Check again</button>
               <a href="#troubleshooting" class="btn-small">More help</a>
             </div>
+            <div style="margin-top: 10px; font-size: 0.78rem; color: #a1a1aa;">Works for Chrome, Brave, Arc, and Edge. Safari and Firefox don't enforce this yet, so this step doesn't apply there.</div>
           </div>
         </div>
 
@@ -611,21 +613,21 @@
       <details class="trouble-item" id="pna-help">
         <summary>My browser blocked the connection to localhost</summary>
         <div class="body">
-          <p>Chrome shows a "private network access" prompt the first time a site tries to reach <span class="inline-code">localhost</span>. If you clicked <strong>Block</strong>, the permission sticks and this page can't talk to your server until you reset it.</p>
-          <p><strong>To reset it in Chrome:</strong></p>
+          <p>The first time this page tries to reach your local machine, Chromium-based browsers show an "access local network" prompt. If you clicked <strong>Block</strong>, the choice is remembered and the browser will not ask again. You need to reset the permission for this site.</p>
+          <p><strong>Easiest fix (works on Chrome, Brave, Arc, Edge):</strong></p>
           <ol>
-            <li>Click the tune icon (sliders) on the left of the address bar</li>
-            <li>Click <strong>Site settings</strong></li>
-            <li>Scroll to <strong>Insecure content</strong> or <strong>Additional permissions</strong></li>
-            <li>Find <strong>Private network access</strong> and change <strong>Block</strong> to <strong>Allow</strong></li>
-            <li>Reload this page</li>
+            <li>Paste this URL into your browser's address bar and press Enter:</li>
           </ol>
-          <p>Or paste this straight into Chrome's address bar to jump to the right settings page:</p>
           <div class="code-block">
             <button class="copy-btn" data-copy="pna">Copy</button>
             <span id="pna-cmd">chrome://settings/content/siteDetails?site=https%3A%2F%2Fhemingweight.vercel.app</span>
           </div>
-          <p>Safari and Firefox don't enforce this yet, so this only applies to Chrome-based browsers (Chrome, Brave, Arc, Edge).</p>
+          <ol start="2">
+            <li>Click the <strong>Reset permissions</strong> button at the top of the page that opens</li>
+            <li>Come back here and reload. When the prompt reappears, click <strong>Allow</strong>.</li>
+          </ol>
+          <p><strong>Manual alternative:</strong> click the tune icon on the left of the address bar, open Site settings, find <strong>Local network</strong> (Brave) or <strong>Private network access</strong> (Chrome), and set it to Allow. Reset is faster.</p>
+          <p>Safari and Firefox don't enforce this yet, so this step doesn't apply there.</p>
         </div>
       </details>
 
