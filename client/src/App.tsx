@@ -102,6 +102,25 @@ function App() {
   const [forceTestPage4, setForceTestPage4] = useState(false);
   const [forceTestPage5, setForceTestPage5] = useState(isDemo);
   const [demoInstallOpen, setDemoInstallOpen] = useState(false);
+
+  // Demo mode: top-level navigation to the local app. No PNA popup because
+  // navigations between origins do not go through the private-network-access
+  // check (only subresources do). URL bar changes to localhost:3457, which is
+  // accurate and matches the pattern used by Plex, Spotify, Slack, etc.
+  const launchLocalApp = useCallback(() => {
+    try { localStorage.setItem('hw.hasInstalled', '1'); } catch {}
+    const httpsUrl = 'https://localhost:3457/?embed=1';
+    window.location.href = httpsUrl;
+  }, []);
+
+  // Auto-launch on load for returning users who have installed before. The
+  // localStorage flag is set the first time they click Launch in demo mode.
+  useEffect(() => {
+    if (!isDemo) return;
+    let stored = '';
+    try { stored = localStorage.getItem('hw.hasInstalled') || ''; } catch {}
+    if (stored === '1') launchLocalApp();
+  }, [launchLocalApp]);
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedModel, setSelectedModel] = useState<ModelKey>(() => {
     const stored = (typeof localStorage !== 'undefined' && localStorage.getItem('hw.selectedModel')) as ModelKey | null;
@@ -1183,23 +1202,23 @@ function App() {
                       </div>
 
                       <button
-                        onClick={() => { setForceTestPage5(false); }}
+                        onClick={() => { if (isDemo) { launchLocalApp(); } else { setForceTestPage5(false); } }}
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: 10,
                           padding: '10px 18px', borderRadius: 8,
-                          background: 'var(--bg-code)',
-                          border: '1px solid var(--border-subtle)',
-                          color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
+                          background: isDemo ? 'var(--accent)' : 'var(--bg-code)',
+                          border: isDemo ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                          color: isDemo ? '#09090b' : 'var(--text-primary)', fontSize: 13, fontWeight: 700,
                           cursor: 'pointer',
                           transition: 'border-color 0.15s',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                        onMouseEnter={e => { if (!isDemo) e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                        onMouseLeave={e => { if (!isDemo) e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
                       >
                         <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                          <path d="M2 4C2 3.44772 2.44772 3 3 3H6.17157C6.43679 3 6.69114 3.10536 6.87868 3.29289L7.70711 4.12132C7.89464 4.30886 8.149 4.41421 8.41421 4.41421H13C13.5523 4.41421 14 4.86193 14 5.41421V12C14 12.5523 13.5523 13 13 13H3C2.44772 13 2 12.5523 2 12V4Z" stroke="var(--accent)" strokeWidth="1.4" />
+                          <path d="M3 8h10M9 4l4 4-4 4" stroke={isDemo ? '#09090b' : 'var(--accent)'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                        Browse existing projects
+                        {isDemo ? 'Launch Hemingweight' : 'Browse existing projects'}
                       </button>
 
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 28 }}>
@@ -2737,7 +2756,24 @@ function App() {
             </div>
             <div style={{ marginTop: 14, fontSize: 13, color: '#a1a1aa', lineHeight: 1.65 }}>
               Takes about two minutes. One Mac password prompt to trust the local HTTPS
-              cert. When it finishes, this page switches to the real app automatically.
+              cert. Once it finishes, click Launch below and you're in.
+            </div>
+            <button
+              onClick={launchLocalApp}
+              style={{
+                marginTop: 14, width: '100%',
+                padding: '10px 18px', borderRadius: 8,
+                background: 'var(--accent)', color: '#09090b',
+                border: 'none', fontSize: 14, fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              Launch Hemingweight
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+            <div style={{ marginTop: 10, fontSize: 11, color: '#71717a', lineHeight: 1.5 }}>
+              If you haven't run the command yet, the browser will show a "can't be reached" error. Run the install first, then click Launch.
             </div>
           </div>
         </div>
