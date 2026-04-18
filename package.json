@@ -1,6 +1,6 @@
 {
   "name": "hemingweight",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "description": "Browser-based coding environment powered by AI",
   "main": "server.js",
   "scripts": {

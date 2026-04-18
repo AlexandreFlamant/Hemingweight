@@ -194,6 +194,77 @@ app.get('/api/health', (req, res) => {
   res.json(payload);
 });
 
+// ── Version + update check ─────────────────────────────────────────────────
+// Current version is read from package.json at startup. Latest is polled from
+// the raw package.json on the main branch, cached for 30 minutes so we don't
+// hammer GitHub.
+const PKG_JSON = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')); }
+  catch { return { version: '0.0.0' }; }
+})();
+const CURRENT_VERSION = PKG_JSON.version || '0.0.0';
+const VERSION_URL = 'https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/package.json';
+const VERSION_CACHE_MS = 30 * 60 * 1000;
+let versionCache = { latest: null, checkedAt: 0, error: null };
+
+function cmpVersion(a, b) {
+  const pa = (a || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = (b || '0').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  }
+  return 0;
+}
+
+async function fetchLatestVersion() {
+  if (versionCache.latest && Date.now() - versionCache.checkedAt < VERSION_CACHE_MS) {
+    return versionCache.latest;
+  }
+  try {
+    const res = await fetch(VERSION_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('status ' + res.status);
+    const body = await res.json();
+    versionCache = { latest: body.version || null, checkedAt: Date.now(), error: null };
+    return versionCache.latest;
+  } catch (err) {
+    versionCache = { latest: versionCache.latest, checkedAt: Date.now(), error: err.message };
+    return versionCache.latest;
+  }
+}
+
+app.get('/api/version', async (req, res) => {
+  const latest = await fetchLatestVersion();
+  const updateAvailable = latest && cmpVersion(latest, CURRENT_VERSION) > 0;
+  res.json({
+    current: CURRENT_VERSION,
+    latest: latest || null,
+    updateAvailable: !!updateAvailable,
+    checkedAt: versionCache.checkedAt,
+  });
+});
+
+app.post('/api/update', (req, res) => {
+  const script = path.join(__dirname, 'update.sh');
+  if (!fs.existsSync(script)) {
+    return res.status(500).json({ error: 'update.sh missing, run the installer curl again' });
+  }
+  // Spawn detached so the script outlives the server restart it triggers.
+  // Log output to ~/.hemingweight/update.log for debugging.
+  const logPath = path.join(CONFIG_DIR, 'update.log');
+  try { fs.mkdirSync(CONFIG_DIR, { recursive: true }); } catch {}
+  const out = fs.openSync(logPath, 'a');
+  const err = fs.openSync(logPath, 'a');
+  const child = spawn('bash', [script], {
+    detached: true,
+    stdio: ['ignore', out, err],
+    cwd: __dirname,
+    env: { ...process.env, PATH: FULL_PATH },
+  });
+  child.unref();
+  res.json({ started: true, logPath });
+});
+
 // Docs page — renders README.md as a wiki-style page
 app.get('/docs', (req, res) => {
   const readmePath = path.join(__dirname, 'README.md');

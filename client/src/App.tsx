@@ -172,6 +172,9 @@ function App() {
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<{ current: string; latest: string | null; updateAvailable: boolean } | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState('');
   const [editingPath, setEditingPath] = useState(false);
   const [promptHighlight, setPromptHighlight] = useState(false);
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -199,6 +202,65 @@ function App() {
     if (isDemo) return;
     fetch('/api/models').then(r => r.json()).then((data: ModelsMap) => setAvailableModels(data)).catch(() => {});
   }, []);
+
+  // Version / update check. Skipped in demo mode since there's no backend there.
+  // Polls on mount and every 6 hours so long-running sessions eventually see updates.
+  const refreshVersion = useCallback(() => {
+    if (isDemo) return;
+    fetch('/api/version').then(r => r.json()).then((data) => {
+      if (data && typeof data.current === 'string') {
+        setUpdateInfo({
+          current: data.current,
+          latest: data.latest || null,
+          updateAvailable: !!data.updateAvailable,
+        });
+      }
+    }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshVersion();
+    if (isDemo) return;
+    const id = setInterval(refreshVersion, 6 * 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [refreshVersion]);
+
+  const runUpdate = useCallback(async () => {
+    if (updating || !updateInfo) return;
+    setUpdating(true);
+    setUpdateMessage('Starting update...');
+    try {
+      const res = await fetch('/api/update', { method: 'POST' });
+      const data = await res.json();
+      if (!data.started) throw new Error(data.error || 'update failed to start');
+    } catch {
+      setUpdating(false);
+      setUpdateMessage('Update failed to start.');
+      setTimeout(() => setUpdateMessage(''), 3000);
+      return;
+    }
+    setUpdateMessage('Installing, Hemingweight will reload...');
+    // Poll until the version endpoint comes back with the new version or we time out.
+    const target = updateInfo.latest;
+    const start = Date.now();
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/version', { cache: 'no-store' });
+        const data = await res.json();
+        if (target && data.current === target) {
+          setUpdateMessage('Updated. Reloading...');
+          setTimeout(() => window.location.reload(), 800);
+          return;
+        }
+      } catch {}
+      if (Date.now() - start > 90000) {
+        setUpdateMessage('Taking longer than expected. Reloading...');
+        setTimeout(() => window.location.reload(), 600);
+        return;
+      }
+      setTimeout(poll, 2500);
+    };
+    setTimeout(poll, 4000);
+  }, [updating, updateInfo]);
   useEffect(() => { refreshAvailableModels(); }, [refreshAvailableModels]);
   useEffect(() => { if (showModelDropdown) refreshAvailableModels(); }, [showModelDropdown, refreshAvailableModels]);
 
@@ -2516,6 +2578,34 @@ function App() {
               </div>
             )}
           </div>
+
+          {/* Update chip: visible only when a newer version is on main. Clicking
+              it runs update.sh via /api/update and reloads when the new server
+              comes back up. */}
+          {updateInfo && updateInfo.updateAvailable && !isDemo && (
+            <button
+              onClick={runUpdate}
+              disabled={updating}
+              title={updating ? updateMessage : `Update to v${updateInfo.latest}`}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px', borderRadius: 7,
+                background: updating ? 'rgba(224,122,75,0.18)' : 'var(--accent)',
+                color: updating ? 'var(--accent)' : '#09090b',
+                border: '1px solid var(--accent)',
+                fontSize: 11, fontWeight: 700,
+                cursor: updating ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 3v7M5 7l3-4 3 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 12v1a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {updating ? 'Updating...' : `Update v${updateInfo.latest}`}
+            </button>
+          )}
 
           {/* Help / Docs dropdown */}
           <div ref={docsMenuRef} style={{ position: 'relative' }}>
