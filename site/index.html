@@ -967,6 +967,28 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
       });
     });
 
+    // Any link pointing at a <details class="trouble-item"> entry should open that
+    // entry on click, not just scroll to it. Handles three cases: hash changes
+    // from a click, direct loads with a hash, and re-clicks when the hash is
+    // already current (which does not fire hashchange).
+    function openDetailsById(id) {
+      const el = document.getElementById(id);
+      if (el && el.tagName === 'DETAILS') {
+        el.open = true;
+        requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      }
+    }
+    window.addEventListener('hashchange', () => {
+      if (window.location.hash) openDetailsById(window.location.hash.slice(1));
+    });
+    if (window.location.hash) openDetailsById(window.location.hash.slice(1));
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', () => {
+        const id = a.getAttribute('href').slice(1);
+        if (id) setTimeout(() => openDetailsById(id), 0);
+      });
+    });
+
     checkServer();
     setInterval(checkServer, 4000);
   </script>
