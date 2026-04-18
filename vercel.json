@@ -2,6 +2,7 @@
   "buildCommand": "",
   "installCommand": "",
   "outputDirectory": "site",
+  "trailingSlash": true,
   "redirects": [
     { "source": "/test_site", "destination": "/", "permanent": false },
     { "source": "/test_site/", "destination": "/", "permanent": false }
