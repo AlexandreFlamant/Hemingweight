@@ -36,6 +36,38 @@ const isDemo = (() => {
   } catch { return false; }
 })();
 
+const DEMO_FLAG_KEY = 'hw.hasInstalled';
+const DEMO_LAST_LAUNCH_KEY = 'hw.lastLaunchAt';
+const LAUNCH_BACKOFF_MS = 8000;
+const LOCAL_APP_URL = 'https://localhost:3457/';
+
+function readDemoFlag(): boolean {
+  try { return localStorage.getItem(DEMO_FLAG_KEY) === '1'; } catch { return false; }
+}
+function setDemoFlag(v: boolean) {
+  try { if (v) localStorage.setItem(DEMO_FLAG_KEY, '1'); else localStorage.removeItem(DEMO_FLAG_KEY); } catch {}
+}
+function getLastLaunchAt(): number {
+  try { return parseInt(localStorage.getItem(DEMO_LAST_LAUNCH_KEY) || '0', 10) || 0; } catch { return 0; }
+}
+function stampLaunch() {
+  try { localStorage.setItem(DEMO_LAST_LAUNCH_KEY, Date.now().toString()); } catch {}
+}
+
+// First-paint decision: pager | launching (auto-redirect) | recovery. Computed
+// synchronously so a returning installed user never sees the pager flash.
+type DemoMode = 'pager' | 'launching' | 'recovery';
+const initialDemoMode: DemoMode = (() => {
+  if (!isDemo) return 'pager';
+  if (!readDemoFlag()) return 'pager';
+  const last = getLastLaunchAt();
+  // If we just tried and they came back quickly, the launch probably failed
+  // (Chrome 'can't be reached'). Show a recovery screen instead of retrying
+  // into the same error.
+  if (last > 0 && (Date.now() - last) < LAUNCH_BACKOFF_MS) return 'recovery';
+  return 'launching';
+})();
+
 function App() {
   const [chatOpen, setChatOpen] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -103,12 +135,33 @@ function App() {
   const [forceTestPage5, setForceTestPage5] = useState(isDemo);
   const [demoInstallOpen, setDemoInstallOpen] = useState(false);
 
-  // Demo mode: top-level navigation to the local app. Top-level navigation
-  // skips the browser's private-network-access popup. No localStorage flag,
-  // no auto-launch on load; every visit lands on the pager, Launch always
-  // requires a click. Keeps the view faithful for first-time-visitor QA.
-  const launchLocalApp = useCallback(() => {
-    window.location.href = 'https://localhost:3457/';
+  const [demoMode, setDemoMode] = useState<DemoMode>(initialDemoMode);
+
+  // launchLocalApp: top-level navigation. Skips PNA entirely.
+  //   markInstalled=true from the final wizard step (user has committed to
+  //     the install). Subsequent visits auto-launch.
+  //   markInstalled=false from the install modal (exploratory tap before the
+  //     user has actually finished the curl). Don't set the flag, so a
+  //     premature click can't create a permanent trap.
+  const launchLocalApp = useCallback((markInstalled: boolean) => {
+    if (markInstalled) setDemoFlag(true);
+    stampLaunch();
+    window.location.href = LOCAL_APP_URL;
+  }, []);
+
+  // Kick the auto-launch navigate once we've rendered the splash, so the
+  // pager never appears for installed returning users.
+  useEffect(() => {
+    if (demoMode !== 'launching') return;
+    stampLaunch();
+    window.location.href = LOCAL_APP_URL;
+  }, [demoMode]);
+
+  const retryDemoLaunch = useCallback(() => setDemoMode('launching'), []);
+  const resetDemoFlag = useCallback(() => {
+    setDemoFlag(false);
+    try { localStorage.removeItem(DEMO_LAST_LAUNCH_KEY); } catch {}
+    setDemoMode('pager');
   }, []);
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedModel, setSelectedModel] = useState<ModelKey>(() => {
@@ -662,6 +715,63 @@ function App() {
     );
   }
 
+  // Demo mode: returning installed user. Splash before the top-level nav
+  // fires so the pager never flashes.
+  if (demoMode === 'launching') {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'var(--bg-primary)',
+        color: 'var(--text-secondary)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 18,
+      }}>
+        <img src="./logo.png" alt="" style={{ width: 40, height: 40, opacity: 0.85 }} />
+        <div style={{ fontSize: 13 }}>Opening Hemingweight...</div>
+      </div>
+    );
+  }
+
+  // Demo mode: last launch was too recent and failed. Offer retry or reset.
+  if (demoMode === 'recovery') {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'var(--bg-primary)',
+        color: 'var(--text-primary)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 14,
+        padding: 24, textAlign: 'center',
+      }}>
+        <img src="./logo.png" alt="" style={{ width: 48, height: 48, opacity: 0.9 }} />
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Couldn't reach Hemingweight</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 420, lineHeight: 1.6 }}>
+          The local server at <span style={{ fontFamily: 'var(--font-mono)' }}>localhost:3457</span> didn't answer. Either the install didn't finish, the server isn't running, or you uninstalled.
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <button
+            onClick={retryDemoLaunch}
+            style={{
+              padding: '10px 18px', borderRadius: 8,
+              background: 'var(--accent)', color: '#09090b',
+              border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            Try again
+          </button>
+          <button
+            onClick={resetDemoFlag}
+            style={{
+              padding: '10px 18px', borderRadius: 8,
+              background: 'transparent', color: 'var(--text-primary)',
+              border: '1px solid var(--border-default)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Go back to setup
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg-deepest)' }}>
       {/* LEFT: Chat / Terminal Panel */}
@@ -1191,7 +1301,7 @@ function App() {
                       </div>
 
                       <button
-                        onClick={() => { if (isDemo) { launchLocalApp(); } else { setForceTestPage5(false); } }}
+                        onClick={() => { if (isDemo) { launchLocalApp(true); } else { setForceTestPage5(false); } }}
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: 10,
                           padding: '10px 18px', borderRadius: 8,
@@ -2748,7 +2858,7 @@ function App() {
               cert. Once it finishes, click Launch below and you're in.
             </div>
             <button
-              onClick={launchLocalApp}
+              onClick={() => launchLocalApp(false)}
               style={{
                 marginTop: 14, width: '100%',
                 padding: '10px 18px', borderRadius: 8,
