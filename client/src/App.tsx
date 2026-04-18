@@ -766,11 +766,11 @@ function App() {
                         The open visual AI builder
                       </div>
                       <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.3 }}>
-                        Yours, on your{' '}
-                        <span style={{ color: 'var(--accent)' }}>machine.</span>
+                        Describe it,{' '}
+                        <span style={{ color: 'var(--accent)' }}>build it.</span>
                       </div>
                       <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 360, marginBottom: 20 }}>
-                        Hemingweight is an open AI coding environment. Describe what you want built, the agent writes the code, the preview updates live. Everything runs on your machine. No cloud, no lock-in. Every project is saved as real files in a folder you choose, yours to edit, version, and keep.
+                        Hemingweight is an open AI coding environment. Everything runs locally with no lock-in.
                       </div>
 
                       <div style={{ width: '100%', maxWidth: 380 }}>
