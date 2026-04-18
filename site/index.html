@@ -345,6 +345,50 @@
       color: #a1a1aa;
     }
 
+    /* ---- MODEL TABS (inside setup step 1) ---- */
+    .model-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 8px 0 18px;
+    }
+    .model-tab {
+      background: rgba(228, 228, 239, 0.04);
+      border: 1px solid rgba(228, 228, 239, 0.12);
+      color: #a1a1aa;
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .model-tab:hover { color: #e4e4ef; border-color: rgba(228, 228, 239, 0.2); }
+    .model-tab.active {
+      background: rgba(224, 122, 75, 0.12);
+      border-color: rgba(224, 122, 75, 0.5);
+      color: #e4e4ef;
+    }
+    .model-tab svg { width: 13px; height: 13px; }
+    .model-panel { display: none; }
+    .model-panel.active { display: block; }
+    .req-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 14px;
+      background: rgba(224, 122, 75, 0.06);
+      border: 1px solid rgba(224, 122, 75, 0.18);
+      border-radius: 8px;
+      margin: 6px 0 12px;
+      font-size: 0.88rem;
+    }
+    .req-row strong { color: #e07a4b; font-weight: 700; }
+
     /* ---- SETUP ---- */
     .setup {
       padding: 48px 24px 24px;
@@ -608,34 +652,76 @@
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-body">
-          <h4>Open Terminal and paste this</h4>
-          <p>On macOS, press <span class="inline-code">Cmd + Space</span>, type <span class="inline-code">Terminal</span>, hit Enter. Then paste:</p>
-          <div class="code-block">
-            <button class="copy-btn" data-copy="install">Copy</button>
-            <span id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash</span>
+          <h4>Pick your model</h4>
+          <p>Hemingweight is bring-your-own-model. Pick whichever you already have or want to sign up for. You can add more later.</p>
+
+          <div class="model-tabs" role="tablist">
+            <button class="model-tab active" data-model="claude" role="tab">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.788 2.628a1.64 1.64 0 0 0-2.14.866l-5.99 13.982a1.64 1.64 0 0 0 .866 2.14 1.64 1.64 0 0 0 2.14-.866l5.99-13.982a1.64 1.64 0 0 0-.866-2.14M8.212 2.628a1.64 1.64 0 0 1 2.14.866l5.99 13.982a1.64 1.64 0 0 1-.866 2.14 1.64 1.64 0 0 1-2.14-.866L7.346 4.768a1.64 1.64 0 0 1 .866-2.14"/></svg>
+              Claude
+            </button>
+            <button class="model-tab" data-model="mistral" role="tab">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="4" width="4" height="16"/><rect x="9" y="4" width="4" height="9"/><rect x="15" y="4" width="4" height="16"/></svg>
+              Mistral
+            </button>
+            <button class="model-tab" data-model="openai" role="tab">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>
+              OpenAI
+            </button>
+            <button class="model-tab" data-model="gemini" role="tab">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg>
+              Gemini
+            </button>
           </div>
-          <p>You'll be asked for your Mac password once. That's for trusting the local HTTPS certificate so this page can talk securely to your machine. Nothing leaves your laptop.</p>
+
+          <div class="model-panel active" data-model="claude">
+            <div class="req-row"><div><strong>You'll need:</strong> a <a href="https://claude.ai" target="_blank" rel="noopener">Claude Pro or Max</a> subscription, or an API key from <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>.</div></div>
+            <p>Install the CLI if you haven't already (the main installer in step&nbsp;2 does this for you, so skip if you've never used Claude Code before):</p>
+            <div class="code-block">
+              <button class="copy-btn" data-copy="cli-claude">Copy</button>
+              <span id="cli-claude-cmd">npm install -g @anthropic-ai/claude-code</span>
+            </div>
+          </div>
+
+          <div class="model-panel" data-model="mistral">
+            <div class="req-row"><div><strong>You'll need:</strong> a Mistral API key from <a href="https://console.mistral.ai" target="_blank" rel="noopener">La Plateforme</a>.</div></div>
+            <p>Install the Mistral <span class="inline-code">vibe</span> CLI:</p>
+            <div class="code-block">
+              <button class="copy-btn" data-copy="cli-mistral">Copy</button>
+              <span id="cli-mistral-cmd">npm install -g @mistralai/mistralai</span>
+            </div>
+          </div>
+
+          <div class="model-panel" data-model="openai">
+            <div class="req-row"><div><strong>You'll need:</strong> an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a>.</div></div>
+            <p>Install the OpenAI <span class="inline-code">codex</span> CLI:</p>
+            <div class="code-block">
+              <button class="copy-btn" data-copy="cli-openai">Copy</button>
+              <span id="cli-openai-cmd">npm install -g @openai/codex</span>
+            </div>
+          </div>
+
+          <div class="model-panel" data-model="gemini">
+            <div class="req-row"><div><strong>You'll need:</strong> a Google AI Studio API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>.</div></div>
+            <p>Install the Google <span class="inline-code">gemini</span> CLI:</p>
+            <div class="code-block">
+              <button class="copy-btn" data-copy="cli-gemini">Copy</button>
+              <span id="cli-gemini-cmd">npm install -g @google/gemini-cli</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-body">
-          <h4>Wait for the install to finish</h4>
-          <p>About two minutes. The installer puts Node, Python, Git, Hemingweight, and the Claude Code CLI in place, registers an auto-start for the server, and generates a local TLS cert.</p>
-          <p>Prefer Mistral, OpenAI, or Gemini? Install them alongside in the same Terminal, no re-setup needed:</p>
+          <h4>Install Hemingweight</h4>
+          <p>On macOS, press <span class="inline-code">Cmd + Space</span>, type <span class="inline-code">Terminal</span>, hit Enter. Then paste this and hit Enter:</p>
           <div class="code-block">
-            <button class="copy-btn" data-copy="models">Copy</button>
-            <span id="models-cmd"># Mistral CLI
-npm install -g @mistralai/mistralai
-
-# OpenAI Codex CLI
-npm install -g @openai/codex
-
-# Google Gemini CLI
-npm install -g @google/gemini-cli</span>
+            <button class="copy-btn" data-copy="install">Copy</button>
+            <span id="install-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash</span>
           </div>
-          <p>You can switch models inside Hemingweight at any time. The installed CLIs light up automatically.</p>
+          <p>About two minutes. You'll be asked for your Mac password once, for trusting the local HTTPS certificate. Nothing leaves your laptop. The installer puts Node, Python, Git, Hemingweight, and the Claude Code CLI in place.</p>
         </div>
       </div>
 
@@ -643,7 +729,7 @@ npm install -g @google/gemini-cli</span>
         <div class="step-num">3</div>
         <div class="step-body">
           <h4>Refresh this page, then click Launch</h4>
-          <p>The status indicator at the top will flip from red to green as soon as your local server is reachable. Click <strong>Launch Hemingweight</strong>, pick your model on first open, paste the matching API key (or sign in), and you're in.</p>
+          <p>The status indicator at the top will flip from red to green as soon as your local server is reachable. Click <strong>Launch Hemingweight</strong>, pick your model on first open, paste your API key (or sign in), and you're in.</p>
           <p>On the very first launch, your browser may ask whether this page is allowed to talk to your local network. Click <strong>Allow</strong>. If you miss the prompt or click Block by mistake, <a href="#pna-help">here's how to fix it</a>.</p>
         </div>
       </div>
@@ -869,6 +955,15 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
           btn.textContent = 'Copied!';
           setTimeout(() => { btn.textContent = original; }, 1400);
         });
+      });
+    });
+
+    // Model tabs in setup step 1
+    document.querySelectorAll('.model-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const key = tab.dataset.model;
+        document.querySelectorAll('.model-tab').forEach(t => t.classList.toggle('active', t.dataset.model === key));
+        document.querySelectorAll('.model-panel').forEach(p => p.classList.toggle('active', p.dataset.model === key));
       });
     });
 
