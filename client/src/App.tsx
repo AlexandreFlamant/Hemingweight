@@ -1248,43 +1248,44 @@ function App() {
                         </div>
 
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 380, margin: '0 auto 24px' }}>
-                          {/* Claude */}
-                          <button
-                            className="btn-ghost"
-                            onClick={() => setWizardStep(2)}
-                            style={{
-                              flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
-                              border: '1px solid var(--accent)',
-                              background: 'rgba(224,122,75,0.08)',
-                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24" fill="var(--accent)"><path d="M15.788 2.628a1.64 1.64 0 0 0-2.14.866l-5.99 13.982a1.64 1.64 0 0 0 .866 2.14 1.64 1.64 0 0 0 2.14-.866l5.99-13.982a1.64 1.64 0 0 0-.866-2.14M8.212 2.628a1.64 1.64 0 0 1 2.14.866l5.99 13.982a1.64 1.64 0 0 1-.866 2.14 1.64 1.64 0 0 1-2.14-.866L7.346 4.768a1.64 1.64 0 0 1 .866-2.14"/></svg>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Claude</span>
-                          </button>
-
-                          {/* GPT — coming soon */}
-                          <div style={{
-                            flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
-                            border: '1px solid var(--border-subtle)', opacity: 0.4,
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                          }}>
-                            <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>GPT</span>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-bg-strong)', padding: '1px 6px', borderRadius: 4 }}>SOON</span>
-                          </div>
-
-                          {/* Gemini — coming soon */}
-                          <div style={{
-                            flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
-                            border: '1px solid var(--border-subtle)', opacity: 0.4,
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                          }}>
-                            <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24"><path fill="var(--text-muted)" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Gemini</span>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-bg-strong)', padding: '1px 6px', borderRadius: 4 }}>SOON</span>
-                          </div>
+                          {([
+                            {
+                              key: 'claude' as const, name: 'Claude', color: 'var(--accent)',
+                              icon: <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24" fill="currentColor"><path d="M15.788 2.628a1.64 1.64 0 0 0-2.14.866l-5.99 13.982a1.64 1.64 0 0 0 .866 2.14 1.64 1.64 0 0 0 2.14-.866l5.99-13.982a1.64 1.64 0 0 0-.866-2.14M8.212 2.628a1.64 1.64 0 0 1 2.14.866l5.99 13.982a1.64 1.64 0 0 1-.866 2.14 1.64 1.64 0 0 1-2.14-.866L7.346 4.768a1.64 1.64 0 0 1 .866-2.14"/></svg>,
+                            },
+                            {
+                              key: 'mistral' as const, name: 'Mistral', color: '#FA500F',
+                              icon: <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24" fill="currentColor"><path d="M17.143 3.429v3.428h-3.429v3.429h-3.428V6.857H6.857V3.43H3.43v13.714H0v3.428h10.286v-3.428H6.857v-3.429h3.429v3.429h3.429v-3.429h3.428v3.429h-3.428v3.428H24v-3.428h-3.43V3.429z"/></svg>,
+                            },
+                            {
+                              key: 'openai' as const, name: 'OpenAI', color: '#10a37f',
+                              icon: <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.998 5.998 0 0 0-3.998 2.9 6.042 6.042 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073z"/></svg>,
+                            },
+                            {
+                              key: 'gemini' as const, name: 'Gemini', color: '#4285F4',
+                              icon: <svg style={{ width: 24, height: 24 }} viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg>,
+                            },
+                          ]).map(m => {
+                            const isSelected = selectedModel === m.key;
+                            return (
+                              <button
+                                key={m.key}
+                                className="btn-ghost"
+                                onClick={() => { setSelectedModel(m.key); setWizardStep(2); }}
+                                style={{
+                                  flex: '1 1 160px', padding: '14px 12px', borderRadius: 10,
+                                  border: isSelected ? `1px solid ${m.color}` : '1px solid var(--border-subtle)',
+                                  background: isSelected ? 'rgba(224,122,75,0.08)' : 'var(--bg-code)',
+                                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                                  cursor: 'pointer',
+                                  color: m.color,
+                                }}
+                              >
+                                {m.icon}
+                                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </>
                     )}
