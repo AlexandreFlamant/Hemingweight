@@ -191,6 +191,61 @@
       margin-top: 18px;
     }
 
+    /* ---- PERMISSION FIX (shown when the browser is blocking localhost) ---- */
+    .perm-fix {
+      margin-top: 18px;
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.28);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .perm-fix-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #fecaca;
+      margin-bottom: 8px;
+    }
+    .perm-fix-body {
+      font-size: 0.86rem;
+      color: #e4e4ef;
+      line-height: 1.55;
+    }
+    .perm-fix-body ol { padding-left: 20px; margin: 8px 0 12px; }
+    .perm-fix-body li { margin-bottom: 4px; }
+    .perm-fix-url {
+      background: #0a0a0f;
+      border: 1px solid rgba(228, 228, 239, 0.12);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      word-break: break-all;
+      margin: 8px 0 12px;
+      color: #d4d4d8;
+    }
+    .perm-fix-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-small {
+      background: rgba(228, 228, 239, 0.08);
+      color: #e4e4ef;
+      font-weight: 600;
+      font-size: 0.82rem;
+      padding: 7px 14px;
+      border-radius: 7px;
+      border: 1px solid rgba(228, 228, 239, 0.16);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-small:hover { background: rgba(228, 228, 239, 0.14); }
+    .btn-small.primary {
+      background: #e07a4b;
+      border-color: #e07a4b;
+      color: #09090b;
+    }
+    .btn-small.primary:hover { background: #d06a3b; }
+
     .btn {
       background: #e07a4b;
       color: #09090b;
@@ -470,6 +525,24 @@
         <div id="status-detail" class="status-detail">This takes a second.</div>
         <div id="status-transport" class="status-detail hidden"></div>
 
+        <div id="perm-fix" class="perm-fix hidden">
+          <div class="perm-fix-title">Your browser may be blocking the local connection</div>
+          <div class="perm-fix-body">
+            If you already installed Hemingweight but the status stays red, Chrome has probably remembered a "Block" on the private-network prompt. Reset it in three steps:
+            <ol>
+              <li>Click <strong>Copy settings URL</strong> below</li>
+              <li>Paste it into Chrome's address bar and press Enter</li>
+              <li>Change <strong>Insecure private network</strong> (or <strong>Private network access</strong>) to <strong>Allow</strong>, then come back and hit <strong>Check again</strong></li>
+            </ol>
+            <div class="perm-fix-url mono" id="perm-fix-url">chrome://settings/content/siteDetails?site=https%3A%2F%2Fhemingweight.vercel.app</div>
+            <div class="perm-fix-actions">
+              <button class="btn-small" id="copy-settings-btn">Copy settings URL</button>
+              <button class="btn-small primary" id="recheck-btn">Check again</button>
+              <a href="#troubleshooting" class="btn-small">More help</a>
+            </div>
+          </div>
+        </div>
+
         <div class="actions">
           <button id="launch-btn" class="btn" disabled>Launch Hemingweight</button>
           <a href="#setup" class="btn-ghost" id="install-link">How to install</a>
@@ -640,6 +713,10 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
     const transportDetail = document.getElementById('status-transport');
     const launchBtn = document.getElementById('launch-btn');
     const installLink = document.getElementById('install-link');
+    const permFix = document.getElementById('perm-fix');
+    const permFixUrl = document.getElementById('perm-fix-url');
+    const copySettingsBtn = document.getElementById('copy-settings-btn');
+    const recheckBtn = document.getElementById('recheck-btn');
 
     let activeTransport = null;
     let consecutiveFailures = 0;
@@ -689,6 +766,7 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
       launchBtn.disabled = false;
       launchBtn.textContent = 'Launch Hemingweight';
       installLink.textContent = 'Reinstall or update';
+      permFix.classList.add('hidden');
     }
 
     function setOffline() {
@@ -697,10 +775,9 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
       dot.classList.remove('checking', 'online');
       dot.classList.add('offline');
       label.textContent = 'Local server not reachable';
-      // After a few failed checks, nudge the user toward the PNA recovery section in case
-      // Chrome's private-network prompt was dismissed.
       if (consecutiveFailures >= 2) {
-        detail.innerHTML = 'If you already installed Hemingweight, check <a href="#pna-help">browser permissions</a> or <a href="#troubleshooting">troubleshooting</a>.';
+        detail.textContent = 'Either Hemingweight is not installed yet, or your browser is blocking the connection.';
+        permFix.classList.remove('hidden');
       } else {
         detail.textContent = 'Install Hemingweight below, then refresh this page.';
       }
@@ -712,6 +789,26 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
 
     launchBtn.addEventListener('click', () => {
       if (activeTransport) window.location.href = activeTransport.url;
+    });
+
+    copySettingsBtn.addEventListener('click', () => {
+      const url = permFixUrl.textContent.trim();
+      navigator.clipboard.writeText(url).then(() => {
+        const original = copySettingsBtn.textContent;
+        copySettingsBtn.textContent = 'Copied! Now paste into address bar';
+        setTimeout(() => { copySettingsBtn.textContent = original; }, 2400);
+      });
+    });
+
+    recheckBtn.addEventListener('click', () => {
+      dot.classList.remove('offline', 'online');
+      dot.classList.add('checking');
+      label.textContent = 'Checking again...';
+      detail.textContent = '';
+      // Reset failure counter so we give the server a fresh chance before re-showing the panel.
+      consecutiveFailures = 0;
+      permFix.classList.add('hidden');
+      checkServer();
     });
 
     // Copy-to-clipboard buttons (one handler per page via data-copy)
