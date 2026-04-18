@@ -456,38 +456,32 @@ function App() {
       term.writeln(`\x1b[38;5;60m  ${project.path}\x1b[0m\r\n`);
     }
 
+    // Snapshot the model at call time so the ws.onopen handler below sends
+    // exactly this value. Reading selectedModelRef.current inside onopen would
+    // re-resolve the ref after the async WebSocket handshake, which is the
+    // window where another render could drift it and cause the prompt to land
+    // in the wrong CLI.
+    const modelToStart = modelOverride || selectedModelRef.current;
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = window.location.host;
     const ws = new WebSocket(`${protocol}//${wsHost}/ws`);
     wsRef.current = ws;
 
+    // Pass the pending prompt as the CLI's positional argument — Claude,
+    // Gemini, Codex and Vibe all accept one, and doing it this way avoids
+    // racing the CLI's TUI boot or trust-prompt screens with stdin injection.
+    const initialPrompt = pendingPromptRef.current || undefined;
+    pendingPromptRef.current = null;
+
     ws.onopen = () => {
       setStatus('running');
       const cols = term?.cols || 120;
       const rows = term?.rows || 40;
-      const modelToStart = modelOverride || selectedModelRef.current;
-      ws.send(JSON.stringify({ type: 'start', cwd: project.path, cols, rows, model: modelToStart }));
-
-      if (pendingPromptRef.current) {
-        const prompt = pendingPromptRef.current;
-        pendingPromptRef.current = null;
-        // Retry submit a few times — claude may still be initializing when the first try fires.
-        let attempt = 0;
-        const submit = () => {
-          if (ws.readyState !== WebSocket.OPEN) return;
-          if (attempt === 0) {
-            ws.send(JSON.stringify({ type: 'input', data: prompt }));
-          }
-          setTimeout(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'input', data: '\r' }));
-            }
-          }, 400);
-          attempt++;
-          if (attempt < 3) setTimeout(submit, 2500);
-        };
-        setTimeout(submit, 2500);
-      }
+      ws.send(JSON.stringify({
+        type: 'start', cwd: project.path, cols, rows,
+        model: modelToStart, prompt: initialPrompt,
+      }));
 
       term?.onData((data: string) => {
         if (ws.readyState === WebSocket.OPEN) {
@@ -751,7 +745,7 @@ function App() {
         pendingPromptRef.current = promptText.trim();
         setIsCooking(true);
         setTimeout(() => setIsCooking(false), 90000);
-        connectToProject(newProj);
+        connectToProject(newProj, selectedModelRef.current);
         setPromptText('');
         setPromptName('');
         setPromptNameEdited(false);

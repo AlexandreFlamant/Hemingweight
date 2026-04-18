@@ -1460,7 +1460,13 @@ wss.on('connection', (ws) => {
           if (!binPath) {
             throw new Error(`${modelEntry.name} CLI ("${modelEntry.cli}") not found. Make sure it is installed and on your PATH.`);
           }
-          const claudeArgs = [binPath];
+          // All four supported CLIs accept the initial prompt as a positional
+          // argument: `claude [prompt]`, `gemini [query..]`, `codex [PROMPT]`,
+          // `vibe [PROMPT]`. Passing it here avoids racing against each CLI's
+          // TUI boot with stdin injection.
+          const initialPrompt = typeof msg.prompt === 'string' ? msg.prompt.trim() : '';
+          const cliArgs = [binPath];
+          if (initialPrompt) cliArgs.push(initialPrompt);
 
           // Use Python PTY bridge to get a real pseudo-terminal
           childProc = spawn('python3', [
@@ -1468,7 +1474,7 @@ wss.on('connection', (ws) => {
             String(cols),
             String(rows),
             cwd,
-            ...claudeArgs
+            ...cliArgs
           ], {
             stdio: ['pipe', 'pipe', 'pipe'],
             env: {
