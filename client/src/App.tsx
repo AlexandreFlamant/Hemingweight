@@ -40,6 +40,8 @@ const DEMO_FLAG_KEY = 'hw.hasInstalled';
 const DEMO_LAST_LAUNCH_KEY = 'hw.lastLaunchAt';
 const LAUNCH_BACKOFF_MS = 8000;
 const LOCAL_APP_URL = 'https://localhost:3457/';
+const LOCAL_PROBE_URL = 'https://localhost:3457/api/health';
+const PROBE_TIMEOUT_MS = 1500;
 
 function readDemoFlag(): boolean {
   try { return localStorage.getItem(DEMO_FLAG_KEY) === '1'; } catch { return false; }
@@ -53,6 +55,37 @@ function getLastLaunchAt(): number {
 function stampLaunch() {
   try { localStorage.setItem(DEMO_LAST_LAUNCH_KEY, Date.now().toString()); } catch {}
 }
+
+// Probe the local app before navigating so uninstalled (or uninstalled-but-flag-still-set)
+// visitors never see Chrome's ERR_CONNECTION_REFUSED page. Resolves true when the local
+// server answers /api/health within PROBE_TIMEOUT_MS, false otherwise.
+async function probeLocalApp(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+    const res = await fetch(LOCAL_PROBE_URL, { signal: controller.signal, credentials: 'omit', cache: 'no-store' });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// Bounce-back flag: install-remote.sh opens /direct?installed=1 at the end of a
+// fresh install, so a terminal-first user is recognized on their very first visit.
+// Read and strip the param synchronously so it doesn't linger in the URL.
+(() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('installed') === '1') {
+      setDemoFlag(true);
+      params.delete('installed');
+      const qs = params.toString();
+      const newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+      window.history.replaceState(null, '', newUrl);
+    }
+  } catch {}
+})();
 
 // First-paint decision: pager | launching (auto-redirect) | recovery. Computed
 // synchronously so a returning installed user never sees the pager flash.
@@ -137,24 +170,44 @@ function App() {
 
   const [demoMode, setDemoMode] = useState<DemoMode>(initialDemoMode);
 
-  // launchLocalApp: top-level navigation. Skips PNA entirely.
+  // launchLocalApp: probe the local server, then top-level navigate if alive.
   //   markInstalled=true from the final wizard step (user has committed to
-  //     the install). Subsequent visits auto-launch.
+  //     the install). Sets the flag on success so subsequent visits auto-launch.
   //   markInstalled=false from the install modal (exploratory tap before the
-  //     user has actually finished the curl). Don't set the flag, so a
-  //     premature click can't create a permanent trap.
-  const launchLocalApp = useCallback((markInstalled: boolean) => {
+  //     user has actually finished the curl). Doesn't persist the flag.
+  // Either way, if the probe fails we route into 'recovery' instead of letting
+  // the browser render its own ERR_CONNECTION_REFUSED page.
+  const launchLocalApp = useCallback(async (markInstalled: boolean) => {
+    setDemoMode('launching');
+    const alive = await probeLocalApp();
+    if (!alive) {
+      stampLaunch();
+      setDemoMode('recovery');
+      return;
+    }
     if (markInstalled) setDemoFlag(true);
     stampLaunch();
     window.location.href = LOCAL_APP_URL;
   }, []);
 
-  // Kick the auto-launch navigate once we've rendered the splash, so the
-  // pager never appears for installed returning users.
+  // Kick the auto-launch once we've rendered the splash, so the pager never
+  // appears for installed returning users. Probe first: if the local server
+  // doesn't answer, show the recovery screen instead of the browser error page.
   useEffect(() => {
     if (demoMode !== 'launching') return;
-    stampLaunch();
-    window.location.href = LOCAL_APP_URL;
+    let cancelled = false;
+    (async () => {
+      const alive = await probeLocalApp();
+      if (cancelled) return;
+      if (alive) {
+        stampLaunch();
+        window.location.href = LOCAL_APP_URL;
+      } else {
+        stampLaunch();
+        setDemoMode('recovery');
+      }
+    })();
+    return () => { cancelled = true; };
   }, [demoMode]);
 
   const retryDemoLaunch = useCallback(() => setDemoMode('launching'), []);
@@ -800,30 +853,30 @@ function App() {
         padding: 24, textAlign: 'center',
       }}>
         <img src="./logo.png" alt="" style={{ width: 48, height: 48, opacity: 0.9 }} />
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Couldn't reach Hemingweight</div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 420, lineHeight: 1.6 }}>
-          The local server at <span style={{ fontFamily: 'var(--font-mono)' }}>localhost:3457</span> didn't answer. Either the install didn't finish, the server isn't running, or you uninstalled.
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Looks like Hemingweight isn't installed here yet</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 440, lineHeight: 1.6 }}>
+          We couldn't reach the local app on this machine. Either you haven't installed yet, the server isn't running, or your version is out of date. The setup takes about two minutes and we'll walk you through it.
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <button
-            onClick={retryDemoLaunch}
+            onClick={resetDemoFlag}
             style={{
               padding: '10px 18px', borderRadius: 8,
               background: 'var(--accent)', color: '#09090b',
               border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
             }}
           >
-            Try again
+            Start setup
           </button>
           <button
-            onClick={resetDemoFlag}
+            onClick={retryDemoLaunch}
             style={{
               padding: '10px 18px', borderRadius: 8,
               background: 'transparent', color: 'var(--text-primary)',
               border: '1px solid var(--border-default)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
             }}
           >
-            Go back to setup
+            Try again
           </button>
         </div>
       </div>
@@ -3033,7 +3086,7 @@ function App() {
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
             <div style={{ marginTop: 10, fontSize: 11, color: '#71717a', lineHeight: 1.5 }}>
-              If you haven't run the command yet, the browser will show a "can't be reached" error. Run the install first, then click Launch.
+              If the install hasn't finished yet, we'll let you know and send you back here.
             </div>
           </div>
         </div>

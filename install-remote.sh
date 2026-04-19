@@ -101,15 +101,10 @@ echo -e "${DIM}Building client...${RESET}"
 cd "$HEMINGWEIGHT_DIR/client" && npm run build --quiet 2>/dev/null
 echo -e "${GREEN}✅ Dependencies installed & client built${RESET}"
 
-# --- Register Chrome native messaging host ---
-echo -e "${DIM}Registering Chrome extension...${RESET}"
-cd "$HEMINGWEIGHT_DIR" && bash install.sh 2>/dev/null
-echo -e "${GREEN}✅ Chrome native messaging registered${RESET}"
-
 # --- Set up web-entry flow (macOS only for now) ---
-# This lets users reach Hemingweight from https://hemingweight.vercel.app/
-# without installing the Chrome extension. Installs a locally-trusted TLS cert
-# and a LaunchAgent so the server is always reachable at https://localhost:3457.
+# Installs a locally-trusted TLS cert and a LaunchAgent so the server is always
+# reachable at https://localhost:3457. The site at hemingweight.com/direct
+# probes that endpoint and hands off to the local app when it answers.
 if [[ "$OSTYPE" == "darwin"* ]]; then
   echo ""
   echo -e "${ORANGE}Setting up web entry...${RESET}"
@@ -126,19 +121,20 @@ fi
 echo ""
 echo -e "${GREEN}🎉 Hemingweight is installed!${RESET}"
 echo ""
-echo "Two ways to open Hemingweight:"
+echo "Opening Hemingweight in your browser..."
 echo ""
-echo -e "  ${ORANGE}A. From the web (no extension needed)${RESET}"
-echo "     Open: https://hemingweight.vercel.app/"
-echo "     The page detects your local server and hands off to it."
-echo ""
-echo -e "  ${ORANGE}B. From the Chrome extension${RESET}"
-echo "     1. Open Chrome, go to chrome://extensions"
-echo "     2. Turn on \"Developer mode\" (top right toggle)"
-echo "     3. Click \"Load unpacked\""
-echo "     4. Select: $HEMINGWEIGHT_DIR/extension"
-echo "     5. Click the Hemingweight icon in the toolbar"
-echo ""
-echo -e "${DIM}Hemingweight installed at: $HEMINGWEIGHT_DIR${RESET}"
-echo -e "${DIM}To stop auto-start:     bash $HEMINGWEIGHT_DIR/uninstall-launch-agent.sh${RESET}"
+
+# Bounce the user back to the landing with ?installed=1 so the site remembers
+# them as installed on the very first visit. The page reads the param, writes
+# the flag to localStorage, probes the local server, and hands off.
+LANDING_URL="https://www.hemingweight.com/direct/?installed=1"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  open "$LANDING_URL" 2>/dev/null || true
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$LANDING_URL" 2>/dev/null || true
+fi
+
+echo -e "${DIM}If the browser didn't open, go to: $LANDING_URL${RESET}"
+echo -e "${DIM}Installed at: $HEMINGWEIGHT_DIR${RESET}"
+echo -e "${DIM}To stop auto-start: bash $HEMINGWEIGHT_DIR/uninstall-launch-agent.sh${RESET}"
 echo ""

@@ -36,6 +36,8 @@ const ALLOWED_ORIGINS = [
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
   /^https:\/\/hemingweight\.vercel\.app$/,
   /^https:\/\/.*\.hemingweight\.vercel\.app$/,
+  /^https:\/\/hemingweight\.com$/,
+  /^https:\/\/.*\.hemingweight\.com$/,
   /^chrome-extension:\/\/oppghhmjfjibmjjbpchmhheelfcnbboo$/,
 ];
 function isAllowedOrigin(origin) {
