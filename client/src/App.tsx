@@ -950,8 +950,8 @@ function App() {
               display: 'flex', flexDirection: 'column',
               overflow: 'hidden',
             }}>
-              {(projects.length === 0 || forceFirstTime || forceTestPage2 || forceTestPage3 || forceTestPage4 || forceTestPage5) ? (
-                forceTestPage5 ? (
+              {(projects.length === 0 || forceFirstTime || forceTestPage2 || forceTestPage3 || forceTestPage4 || forceTestPage5 || isDemo) ? (
+                (forceTestPage5 || isDemo) ? (
                 /* test-page5 — iteration on test-page4 */
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   {wizardStep === 1 ? (
@@ -2750,8 +2750,10 @@ function App() {
                   <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
                     Let's build something.
                   </div>
+                  <div style={{ position: 'relative', width: '100%' }}>
                   <div
                     onClick={e => {
+                      if (isDemo) return;
                       if (e.target === e.currentTarget) promptTextareaRef.current?.focus();
                     }}
                     style={{
@@ -2760,7 +2762,9 @@ function App() {
                       borderRadius: 8,
                       display: 'flex', flexDirection: 'column',
                       transition: 'border-color 0.3s ease',
-                      cursor: 'text',
+                      cursor: isDemo ? 'default' : 'text',
+                      pointerEvents: isDemo ? 'none' : 'auto',
+                      opacity: isDemo ? 0.5 : 1,
                     }}
                     onKeyDown={e => {
                       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -2825,15 +2829,33 @@ function App() {
                       </button>
                     </div>
                   </div>
-                  <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
-                    <button
-                      className="btn-ghost"
-                      onClick={() => { setForceTestPage5(true); setWizardStep(1); setSelectedProject(null); }}
-                      style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
-                    >
-                      View: New User Pager
-                    </button>
+                  {isDemo && (
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 10, borderRadius: 8,
+                      background: 'rgba(9,9,11,0.55)', backdropFilter: 'blur(2px)',
+                      pointerEvents: 'none',
+                      color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                        <path d="M13 8H3M7 4L3 8l4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Install Hemingweight first
+                    </div>
+                  )}
                   </div>
+                  {!isDemo && (
+                    <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+                      <button
+                        className="btn-ghost"
+                        onClick={() => { setForceTestPage5(true); setWizardStep(1); setSelectedProject(null); }}
+                        style={{ padding: '4px 10px', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)' }}
+                      >
+                        View: New User Pager
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
