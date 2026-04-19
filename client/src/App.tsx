@@ -31,7 +31,7 @@ const isDemo = (() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('demo')) return true;
     const host = window.location.hostname;
-    if (host.endsWith('vercel.app') || host === 'hemingweight.com') return true;
+    if (host.endsWith('vercel.app') || host === 'hemingweight.com' || host.endsWith('.hemingweight.com')) return true;
     return false;
   } catch { return false; }
 })();
