@@ -1097,6 +1097,22 @@ function App() {
                           Next
                         </button>
                       </div>
+
+                      {isDemo && (
+                        <button
+                          onClick={() => launchLocalApp(true)}
+                          style={{
+                            marginTop: 18, padding: '4px 10px',
+                            background: 'none', border: 'none',
+                            fontSize: 11, color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+                        >
+                          Already have Hemingweight? Launch &rarr;
+                        </button>
+                      )}
                     </div>
                   ) : wizardStep === 2 ? (
                     <div style={{
