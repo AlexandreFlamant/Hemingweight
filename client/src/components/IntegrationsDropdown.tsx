@@ -42,7 +42,7 @@ function IntegrationsDropdown({
   setGitConnectMsg: (v: string) => void;
   selectedProjectPath: string;
   setGitData: (v: GitData | null) => void;
-  setRightPanel: (v: 'preview' | 'code' | 'claude' | 'git') => void;
+  setRightPanel: (v: 'preview' | 'code' | 'claude' | 'git' | 'kanban') => void;
   setShowIntegrations: (v: boolean) => void;
 }) {
   if (!show) return null;

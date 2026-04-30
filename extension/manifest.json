@@ -3,7 +3,7 @@
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjxR9hCXHA74NHIY16LNFfucqZPzT/+qM/qza+ZZHhrUbCGEgtCSDehOw7FTxUOMY78NmwUsSua5c5JTC8dgUIJuS5j/B0L5QEDMO8GJ3D+IdxvWJjtVs7OjbY7MEu1XrYaqlsBX/St77gvaMX7yab/jTpnUpALo1nA4rL8h8r1OlwTt9HtJwoP9G/rOddLuiZna/BsQULq5Eq+SNbWSkXIr2w9vpScIyNs7xngYQ+rculZeOq66Quv+VEXuXaNELGQOdtFBSLRKIJtwuOBEcjZ9PVvsQu5ac7++Kb0HvpzoB/dWD2iltB3rRisc1WkXzlN7HW6HWpeItxebRXOIrxwIDAQAB",
   "name": "Hemingweight",
   "description": "Browser-based coding environment powered by AI. Describe what you want in plain English and watch it get built.",
-  "version": "1.5.2",
+  "version": "1.5.10",
   "author": "Alexandre Flamant",
   "homepage_url": "https://hemingweight.vercel.app",
   "minimum_chrome_version": "120",

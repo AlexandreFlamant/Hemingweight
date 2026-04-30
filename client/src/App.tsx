@@ -12,6 +12,7 @@ import IntegrationsDropdown from './components/IntegrationsDropdown';
 import ModelSwitcherDropdown, { type ModelKey, type ModelsMap } from './components/ModelSwitcherDropdown';
 import GitPanel from './components/GitPanel';
 import ClaudeMdPanel from './components/ClaudeMdPanel';
+import KanbanPanel, { type KanbanCard } from './components/KanbanPanel';
 import DocsMenu from './components/DocsMenu';
 import FolderPicker from './components/FolderPicker';
 
@@ -105,7 +106,6 @@ function App() {
   const [chatOpen, setChatOpen] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'running' | 'exited'>('idle');
   const [projectSearch, setProjectSearch] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -114,7 +114,7 @@ function App() {
   const [isCooking, setIsCooking] = useState(false);
   const [previewRunning, setPreviewRunning] = useState(false);
   const [, setPreviewError] = useState('');
-  const [rightPanel, setRightPanel] = useState<'preview' | 'code' | 'claude' | 'git'>('preview');
+  const [rightPanel, setRightPanel] = useState<'preview' | 'code' | 'claude' | 'git' | 'kanban'>('preview');
   const [claudeMd, setClaudeMd] = useState<string | null>(null);
   const [claudeMdLoading, setClaudeMdLoading] = useState(false);
   const [claudeMdEditing, setClaudeMdEditing] = useState(false);
@@ -133,8 +133,6 @@ function App() {
   const [setupDir, setSetupDir] = useState('~/Developer');
   const [setupError, setSetupError] = useState('');
   const [setupSaving, setSetupSaving] = useState(false);
-  const [errorCount, setErrorCount] = useState(0);
-  const errorCountRef = useRef(0);
   const [pages, setPages] = useState<{ path: string; label: string }[]>([]);
   const [currentPage, setCurrentPage] = useState('/');
   const [showPageDropdown, setShowPageDropdown] = useState(false);
@@ -237,10 +235,44 @@ function App() {
   const [promptNameEdited, setPromptNameEdited] = useState(false);
   const pendingPromptRef = useRef<string | null>(null);
 
-  const terminalRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Multi-tab terminal state. Each tab owns its own xterm + websocket; only the
+  // active one's DOM is visible. termRef/wsRef/fitAddonRef above always point
+  // at the active tab so the rest of the file keeps working unchanged.
+  type TabStatus = 'idle' | 'connecting' | 'running' | 'exited';
+  interface TabInstance {
+    term: Terminal;
+    fit: FitAddon;
+    ws: WebSocket | null;
+    div: HTMLDivElement | null;
+    errorCountRef: { current: number };
+  }
+  const makeTabId = () => Math.random().toString(36).slice(2, 10);
+  const [tabIds, setTabIds] = useState<string[]>(() => [makeTabId()]);
+  const [activeTabId, setActiveTabId] = useState<string>(() => tabIds[0]);
+  const [tabStatuses, setTabStatuses] = useState<Record<string, TabStatus>>({});
+  const [tabErrors, setTabErrors] = useState<Record<string, number>>({});
+  const tabsRef = useRef<Map<string, TabInstance>>(new Map());
+  const activeTabIdRef = useRef<string>(activeTabId);
+  useEffect(() => { activeTabIdRef.current = activeTabId; }, [activeTabId]);
+  const [previewOpen, setPreviewOpen] = useState(true);
+  const status: TabStatus = tabStatuses[activeTabId] ?? 'idle';
+  const errorCount: number = tabErrors[activeTabId] ?? 0;
+  const pendingStartRef = useRef<Set<string>>(new Set());
+  // Per-tab spawn config: lets a single addTab() carry its own prompt and
+  // auto-submit decision so Kanban can fan N tasks into N tabs in one go,
+  // without N back-to-back addTab() calls trampling a shared pendingPromptRef.
+  const pendingTabConfigRef = useRef<Map<string, { prompt?: string; autoSubmit?: boolean }>>(new Map());
+  const selectedProjectRef = useRef<Project | null>(null);
+  const setStatusFor = useCallback((id: string, s: TabStatus) => {
+    setTabStatuses(prev => prev[id] === s ? prev : { ...prev, [id]: s });
+  }, []);
+  const setErrorCountFor = useCallback((id: string, n: number) => {
+    setTabErrors(prev => prev[id] === n ? prev : { ...prev, [id]: n });
+  }, []);
   const pageDropdownRef = useRef<HTMLDivElement>(null);
   const integrationsRef = useRef<HTMLDivElement>(null);
   const docsMenuRef = useRef<HTMLDivElement>(null);
@@ -380,10 +412,21 @@ function App() {
       .catch(() => {});
   }, [settingsLoaded, configured]);
 
-  // Initialize terminal
-  useEffect(() => {
-    if (!terminalRef.current || termRef.current) return;
-
+  // Build a fresh xterm + addons for a tab. The tab's <div> gets passed in
+  // when the React ref-callback fires for that tab. We mount the terminal once
+  // per tab and keep it alive across activations (hidden via CSS), so scrollback
+  // and PTY connection survive tab switches.
+  const ensureTabInstance = useCallback((id: string, div: HTMLDivElement) => {
+    const existing = tabsRef.current.get(id);
+    if (existing) {
+      if (existing.div !== div) {
+        existing.div = div;
+        if (!div.contains(existing.term.element || null) && existing.term.element) {
+          div.appendChild(existing.term.element);
+        }
+      }
+      return existing;
+    }
     const term = new Terminal({
       theme: {
         background: '#18181b',
@@ -415,25 +458,65 @@ function App() {
       allowProposedApi: true,
       scrollback: 10000,
     });
-
-    const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
-    term.loadAddon(fitAddon);
-    term.loadAddon(webLinksAddon);
-    term.open(terminalRef.current);
-    setTimeout(() => fitAddon.fit(), 50);
-
-    termRef.current = term;
-    fitAddonRef.current = fitAddon;
-
-    const handleResize = () => setTimeout(() => fitAddon.fit(), 50);
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      term.dispose();
-      termRef.current = null;
-    };
+    const fit = new FitAddon();
+    term.loadAddon(fit);
+    term.loadAddon(new WebLinksAddon());
+    term.open(div);
+    setTimeout(() => { try { fit.fit(); } catch {} }, 50);
+    const instance: TabInstance = { term, fit, ws: null, div, errorCountRef: { current: 0 } };
+    tabsRef.current.set(id, instance);
+    return instance;
   }, []);
+
+  // Keep termRef/fitAddonRef/wsRef pointed at the active tab so the rest of
+  // the file (commit-and-push side effects, chat-toggle resize, etc.) works
+  // unchanged. Refit on switch — xterm's hidden tabs have stale dimensions.
+  useEffect(() => {
+    const inst = tabsRef.current.get(activeTabId);
+    termRef.current = inst?.term ?? null;
+    fitAddonRef.current = inst?.fit ?? null;
+    wsRef.current = inst?.ws ?? null;
+    if (inst) {
+      setTimeout(() => { try { inst.fit.fit(); } catch {} }, 50);
+    }
+  }, [activeTabId]);
+
+  // Resize all tab fits on window resize so background tabs don't desync.
+  useEffect(() => {
+    const handleResize = () => {
+      tabsRef.current.forEach(t => { try { t.fit.fit(); } catch {} });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Dispose terminals when tabs are removed from the list.
+  useEffect(() => {
+    const live = new Set(tabIds);
+    tabsRef.current.forEach((inst, id) => {
+      if (!live.has(id)) {
+        try { inst.ws?.close(); } catch {}
+        try { inst.term.dispose(); } catch {}
+        tabsRef.current.delete(id);
+      }
+    });
+    setTabStatuses(prev => {
+      const next: Record<string, TabStatus> = {};
+      let changed = false;
+      for (const k of Object.keys(prev)) {
+        if (live.has(k)) next[k] = prev[k]; else changed = true;
+      }
+      return changed ? next : prev;
+    });
+    setTabErrors(prev => {
+      const next: Record<string, number> = {};
+      let changed = false;
+      for (const k of Object.keys(prev)) {
+        if (live.has(k)) next[k] = prev[k]; else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [tabIds]);
 
   // Auto-refresh preview when files change
   useEffect(() => {
@@ -468,22 +551,172 @@ function App() {
 
   // test-page5 step 3 auto-detect is paused — Done button advances manually.
 
-  // Refit terminal when chat panel toggles
+  // Refit terminal when chat panel toggles. Fit every tab so background ones
+  // don't desync when the panel re-opens.
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     for (const delay of [50, 150, 300, 400, 500]) {
       timers.push(setTimeout(() => {
-        if (chatOpen && fitAddonRef.current) {
-          fitAddonRef.current.fit();
-          termRef.current?.refresh(0, termRef.current.rows - 1);
+        if (chatOpen) {
+          tabsRef.current.forEach(t => { try { t.fit.fit(); } catch {} });
+          const active = tabsRef.current.get(activeTabIdRef.current);
+          active?.term.refresh(0, active.term.rows - 1);
         }
       }, delay));
     }
     return () => timers.forEach(clearTimeout);
-  }, [chatOpen, selectedModel]);
+  }, [chatOpen, selectedModel, previewOpen, selectedProject]);
+
+  // Start (or restart) a PTY session for one specific tab against the given
+  // project. Splitting this out lets the tab strip's "+ new" button connect a
+  // freshly-spawned tab without going through the project-switch path.
+  const startSessionForTab = useCallback((tabId: string, project: Project, modelOverride?: ModelKey) => {
+    const inst = tabsRef.current.get(tabId);
+    if (!inst) return;
+    setStatusFor(tabId, 'connecting');
+    setErrorCountFor(tabId, 0);
+    inst.errorCountRef.current = 0;
+    try { inst.ws?.close(); } catch {}
+
+    const term = inst.term;
+    term.clear();
+    term.writeln(`\x1b[38;2;224;122;75m  Connecting to: ${project.name}\x1b[0m`);
+    term.writeln(`\x1b[38;5;60m  ${project.path}\x1b[0m\r\n`);
+
+    // Snapshot the model at call time so the ws.onopen handler below sends
+    // exactly this value. Reading selectedModelRef.current inside onopen would
+    // re-resolve the ref after the async WebSocket handshake, which is the
+    // window where another render could drift it and cause the prompt to land
+    // in the wrong CLI.
+    const modelToStart = modelOverride || selectedModelRef.current;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    const ws = new WebSocket(`${protocol}//${wsHost}/ws`);
+    inst.ws = ws;
+    if (tabId === activeTabIdRef.current) wsRef.current = ws;
+
+    // Pass the pending prompt as the CLI's positional argument — Claude,
+    // Gemini, Codex and Vibe all accept one, and doing it this way avoids
+    // racing the CLI's TUI boot or trust-prompt screens with stdin injection.
+    // Per-tab config (set via addTab options) wins over the legacy global ref.
+    const cfg = pendingTabConfigRef.current.get(tabId);
+    pendingTabConfigRef.current.delete(tabId);
+    const initialPrompt = cfg?.prompt || pendingPromptRef.current || undefined;
+    if (!cfg?.prompt) pendingPromptRef.current = null;
+    let autoSubmitPending = !!(cfg?.autoSubmit && initialPrompt);
+
+    ws.onopen = () => {
+      setStatusFor(tabId, 'running');
+      const cols = term.cols || 120;
+      const rows = term.rows || 40;
+      ws.send(JSON.stringify({
+        type: 'start', cwd: project.path, cols, rows,
+        model: modelToStart, prompt: initialPrompt,
+      }));
+
+      term.onData((data: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'input', data }));
+        }
+      });
+      term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+        }
+      });
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'output') {
+        term.write(msg.data);
+        const plain = msg.data.replace(/\x1b\[[0-9;]*m/g, '');
+        if (/\b(error|Error|ERROR|failed|FAILED|exception|Exception)\b/.test(plain) &&
+            !/\b(0 errors?|no errors?)\b/i.test(plain)) {
+          inst.errorCountRef.current += 1;
+          setErrorCountFor(tabId, inst.errorCountRef.current);
+        }
+        // Auto-submit: once the CLI has rendered its first frame the staged
+        // positional prompt is sitting in the input box waiting on Enter. Wait
+        // a beat for the TUI to settle, then fire \r so the user doesn't have
+        // to. Only fires once per session.
+        if (autoSubmitPending) {
+          autoSubmitPending = false;
+          setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'input', data: '\r' }));
+            }
+          }, 1500);
+        }
+      }
+      if (msg.type === 'exit') {
+        setStatusFor(tabId, 'exited');
+        term.writeln('\r\n\x1b[38;5;60m  Session ended.\x1b[0m');
+      }
+    };
+
+    ws.onclose = () => {
+      setTabStatuses(prev => prev[tabId] === 'running' ? { ...prev, [tabId]: 'exited' } : prev);
+    };
+    ws.onerror = (event) => {
+      console.error('WebSocket error:', event);
+      setStatusFor(tabId, 'idle');
+      term.writeln('\r\n\x1b[31m  Connection error.\x1b[0m');
+    };
+  }, [setStatusFor, setErrorCountFor]);
+
+  useEffect(() => { selectedProjectRef.current = selectedProject; }, [selectedProject]);
+
+  // Ref callback applied to each rendered tab div. Creates the xterm instance
+  // on first mount, then if the tab was queued for an auto-start (e.g. it was
+  // just spawned via the + button) and a project is loaded, kicks off the PTY
+  // session immediately so the user doesn't have to do anything else.
+  const tabDivRef = useCallback((id: string) => (div: HTMLDivElement | null) => {
+    if (!div) return;
+    const wasFresh = !tabsRef.current.has(id);
+    ensureTabInstance(id, div);
+    if (id === activeTabIdRef.current) {
+      const inst = tabsRef.current.get(id);
+      termRef.current = inst?.term ?? null;
+      fitAddonRef.current = inst?.fit ?? null;
+      wsRef.current = inst?.ws ?? null;
+    }
+    if (wasFresh && pendingStartRef.current.has(id)) {
+      pendingStartRef.current.delete(id);
+      const proj = selectedProjectRef.current;
+      if (proj) startSessionForTab(id, proj);
+    }
+  }, [ensureTabInstance, startSessionForTab]);
+
+  const addTab = useCallback((opts?: { prompt?: string; autoSubmit?: boolean; activate?: boolean }) => {
+    const id = makeTabId();
+    pendingStartRef.current.add(id);
+    if (opts?.prompt || opts?.autoSubmit) {
+      pendingTabConfigRef.current.set(id, { prompt: opts?.prompt, autoSubmit: opts?.autoSubmit });
+    }
+    setTabIds(prev => [...prev, id]);
+    if (opts?.activate !== false) setActiveTabId(id);
+    return id;
+  }, []);
+
+  const closeTab = useCallback((id: string) => {
+    setTabIds(prev => {
+      if (prev.length <= 1) return prev;
+      const idx = prev.indexOf(id);
+      if (idx < 0) return prev;
+      const next = prev.filter(x => x !== id);
+      if (id === activeTabIdRef.current) {
+        const fallback = next[Math.min(idx, next.length - 1)];
+        setActiveTabId(fallback);
+      }
+      return next;
+    });
+  }, []);
 
   const connectToProject = useCallback((project: Project, modelOverride?: ModelKey) => {
-    if (selectedProject && selectedProject.path !== project.path) {
+    const switching = !!(selectedProject && selectedProject.path !== project.path);
+    if (switching) {
       fetch(`/api/preview/stop-all`, { method: 'POST' }).catch(() => {});
       setPreviewRunning(false);
       setPreviewUrl('');
@@ -496,84 +729,24 @@ function App() {
     setShowMenu(false);
     setCurrentPage('/');
     setShowPageDropdown(false);
-    setStatus('connecting');
-    setErrorCount(0);
-    errorCountRef.current = 0;
 
-    if (wsRef.current) wsRef.current.close();
-
-    const term = termRef.current;
-    if (term) {
-      term.clear();
-      term.writeln(`\x1b[38;2;224;122;75m  Connecting to: ${project.name}\x1b[0m`);
-      term.writeln(`\x1b[38;5;60m  ${project.path}\x1b[0m\r\n`);
+    // Switching projects collapses the tab list back to a single tab — all
+    // tabs share one project, so the simplest UX is to reset rather than
+    // reconnect every tab in the background.
+    const targetTabId = activeTabIdRef.current;
+    if (switching) {
+      setTabIds(prev => {
+        const others = prev.filter(id => id !== targetTabId);
+        others.forEach(id => {
+          const inst = tabsRef.current.get(id);
+          try { inst?.ws?.close(); } catch {}
+        });
+        return [targetTabId];
+      });
     }
 
-    // Snapshot the model at call time so the ws.onopen handler below sends
-    // exactly this value. Reading selectedModelRef.current inside onopen would
-    // re-resolve the ref after the async WebSocket handshake, which is the
-    // window where another render could drift it and cause the prompt to land
-    // in the wrong CLI.
-    const modelToStart = modelOverride || selectedModelRef.current;
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.host;
-    const ws = new WebSocket(`${protocol}//${wsHost}/ws`);
-    wsRef.current = ws;
-
-    // Pass the pending prompt as the CLI's positional argument — Claude,
-    // Gemini, Codex and Vibe all accept one, and doing it this way avoids
-    // racing the CLI's TUI boot or trust-prompt screens with stdin injection.
-    const initialPrompt = pendingPromptRef.current || undefined;
-    pendingPromptRef.current = null;
-
-    ws.onopen = () => {
-      setStatus('running');
-      const cols = term?.cols || 120;
-      const rows = term?.rows || 40;
-      ws.send(JSON.stringify({
-        type: 'start', cwd: project.path, cols, rows,
-        model: modelToStart, prompt: initialPrompt,
-      }));
-
-      term?.onData((data: string) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'input', data }));
-        }
-      });
-      term?.onResize(({ cols, rows }: { cols: number; rows: number }) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'resize', cols, rows }));
-        }
-      });
-    };
-
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'output') {
-        term?.write(msg.data);
-        const plain = msg.data.replace(/\x1b\[[0-9;]*m/g, '');
-        if (/\b(error|Error|ERROR|failed|FAILED|exception|Exception)\b/.test(plain) &&
-            !/\b(0 errors?|no errors?)\b/i.test(plain)) {
-          errorCountRef.current += 1;
-          setErrorCount(errorCountRef.current);
-        }
-      }
-      if (msg.type === 'exit') {
-        setStatus('exited');
-        term?.writeln('\r\n\x1b[38;5;60m  Session ended.\x1b[0m');
-      }
-    };
-
-    ws.onclose = () => {
-      setStatus(prev => prev === 'running' ? 'exited' : prev);
-    };
-    ws.onerror = (event) => {
-      console.error('WebSocket error:', event);
-      setStatus('idle');
-      term?.writeln('\r\n\x1b[31m  Connection error.\x1b[0m');
-    };
-  }, [selectedProject, previewRunning]);
+    startSessionForTab(targetTabId, project, modelOverride);
+  }, [selectedProject, startSessionForTab]);
 
   const launchPreview = useCallback(async () => {
     if (!selectedProject) return;
@@ -887,12 +1060,13 @@ function App() {
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg-deepest)' }}>
       {/* LEFT: Chat / Terminal Panel */}
       <div style={{
-        width: isEmbed ? '100%' : (chatOpen ? 480 : 0),
-        minWidth: isEmbed ? '100%' : (chatOpen ? 480 : 0),
+        width: isEmbed ? '100%' : (!chatOpen ? 0 : (!previewOpen ? '100%' : 480)),
+        minWidth: isEmbed ? '100%' : (!chatOpen ? 0 : (!previewOpen ? 0 : 480)),
+        flex: (!isEmbed && chatOpen && !previewOpen) ? 1 : undefined,
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--bg-panel)',
-        borderRight: (!isEmbed && chatOpen) ? '1px solid var(--border-subtle)' : 'none',
+        borderRight: (!isEmbed && chatOpen && previewOpen) ? '1px solid var(--border-subtle)' : 'none',
         overflow: 'hidden',
         transition: isEmbed ? 'none' : 'width 0.25s ease, min-width 0.25s ease',
       }}>
@@ -964,7 +1138,7 @@ function App() {
             }} />
             {errorCount > 0 && (
               <div
-                onClick={() => setErrorCount(0)}
+                onClick={() => setErrorCountFor(activeTabId, 0)}
                 title={`${errorCount} error(s) detected \u2014 click to dismiss`}
                 style={{
                   background: '#dc2626', color: '#fff',
@@ -2141,15 +2315,139 @@ function App() {
               )}
             </div>
           )}
-          <div
-            ref={terminalRef}
-            style={{
-              position: 'absolute',
-              top: 0, left: 0, right: 0,
-              bottom: selectedModel === 'mistral' ? 8 : 0,
-              opacity: selectedProject ? 1 : 0,
-            }}
-          />
+          {/* Terminal tab strip — only when a project is open */}
+          {selectedProject && (
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: 32,
+              display: 'flex', alignItems: 'stretch',
+              background: 'var(--bg-deepest)',
+              borderBottom: '1px solid var(--border-subtle)',
+              overflow: 'hidden', zIndex: 5,
+            }}>
+              <div style={{ flex: 1, display: 'flex', overflowX: 'auto', overflowY: 'hidden' }}>
+                {tabIds.map((id, i) => {
+                  const ts = tabStatuses[id] ?? 'idle';
+                  const te = tabErrors[id] ?? 0;
+                  const dot = ts === 'running' ? '#4ade80'
+                    : ts === 'connecting' ? '#fbbf24'
+                    : ts === 'exited' ? '#71717a'
+                    : '#52525b';
+                  const isActive = id === activeTabId;
+                  return (
+                    <div
+                      key={id}
+                      onClick={() => setActiveTabId(id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '0 10px', minWidth: 0, maxWidth: 180,
+                        borderRight: '1px solid var(--border-subtle)',
+                        background: isActive ? 'var(--bg-panel)' : 'transparent',
+                        cursor: 'pointer', userSelect: 'none',
+                      }}
+                    >
+                      <span style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: dot, flexShrink: 0,
+                        boxShadow: ts === 'running' ? `0 0 4px ${dot}` : 'none',
+                      }} />
+                      <span style={{
+                        fontSize: 11, fontWeight: isActive ? 600 : 500,
+                        color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        Terminal {i + 1}
+                      </span>
+                      {te > 0 && (
+                        <span style={{
+                          background: '#dc2626', color: '#fff',
+                          fontSize: 9, fontWeight: 700, lineHeight: '12px',
+                          borderRadius: 8, padding: '0 4px', flexShrink: 0,
+                        }}>
+                          {te > 9 ? '9+' : te}
+                        </span>
+                      )}
+                      {tabIds.length > 1 && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); closeTab(id); }}
+                          title="Close tab"
+                          style={{
+                            width: 14, height: 14, padding: 0, marginLeft: 2,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'transparent', border: 'none',
+                            color: 'var(--text-tertiary)', cursor: 'pointer',
+                            borderRadius: 3, flexShrink: 0,
+                          }}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => addTab()}
+                title="New terminal"
+                style={{
+                  width: 32, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 'none',
+                  borderLeft: '1px solid var(--border-subtle)',
+                  color: 'var(--text-tertiary)', cursor: 'pointer',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M6 1.5v9M1.5 6h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+              {!isEmbed && (
+                <button
+                  onClick={() => setPreviewOpen(v => { if (v) setChatOpen(true); return !v; })}
+                  title={previewOpen ? 'Fullscreen terminal' : 'Show preview'}
+                  style={{
+                    width: 32, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: previewOpen ? 'transparent' : 'var(--accent)',
+                    border: 'none',
+                    borderLeft: '1px solid var(--border-subtle)',
+                    color: previewOpen ? 'var(--text-tertiary)' : '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {previewOpen ? (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M6 2v4H2M10 2v4h4M10 14v-4h4M6 14v-4H2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Terminal panes — one per tab; only the active one is visible. */}
+          <div style={{
+            position: 'absolute',
+            top: selectedProject ? 32 : 0, left: 0, right: 0,
+            bottom: selectedModel === 'mistral' ? 8 : 0,
+            opacity: selectedProject ? 1 : 0,
+          }}>
+            {tabIds.map(id => (
+              <div
+                key={id}
+                ref={tabDivRef(id)}
+                style={{
+                  position: 'absolute', inset: 0,
+                  display: id === activeTabId ? 'block' : 'none',
+                }}
+              />
+            ))}
+          </div>
 
           {/* Version history overlay */}
           {showHistory && (
@@ -2339,8 +2637,8 @@ function App() {
         )}
       </div>
 
-      {/* RIGHT: Preview Panel -- hidden in embed mode */}
-      {!isEmbed && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {/* RIGHT: Preview Panel -- hidden in embed mode or when terminal is fullscreen */}
+      {!isEmbed && previewOpen && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Preview Toolbar */}
         <div className="toolbar" style={{ background: 'var(--bg-panel)' }}>
           {/* Claw logo -- shown in toolbar when chat is collapsed */}
@@ -2360,7 +2658,7 @@ function App() {
 
           {/* Toggle chat panel */}
           <button
-            onClick={() => setChatOpen(o => !o)}
+            onClick={() => setChatOpen(o => { if (o) setPreviewOpen(true); return !o; })}
             className="btn-icon"
             style={{
               background: chatOpen ? 'var(--bg-input)' : 'var(--accent)',
@@ -2503,6 +2801,26 @@ function App() {
                 setShowIntegrations={setShowIntegrations}
               />
             </div>
+            {/* Kanban tab */}
+            <button
+              onClick={() => setRightPanel('kanban')}
+              style={{
+                padding: '6px 16px', borderRadius: 6, border: 'none',
+                background: rightPanel === 'kanban' ? 'var(--accent)' : 'transparent',
+                color: rightPanel === 'kanban' ? '#fff' : '#71717a',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                transition: 'background 0.15s, color 0.15s',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+              title="Kanban board"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="1" width="3.5" height="12" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="5.25" y="1" width="3.5" height="8" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="9.5" y="1" width="3.5" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+              Kanban
+            </button>
           </div>
 
           {/* Page navigation bar */}
@@ -2733,9 +3051,41 @@ function App() {
           </div>
         )}
 
-        {/* Content area -- Preview, Code, CLAUDE.md, or Git */}
+        {/* Content area -- Preview, Code, CLAUDE.md, Git, or Kanban */}
         <div style={{ flex: 1, background: 'var(--bg-deepest)', position: 'relative' }}>
-          {rightPanel === 'claude' && selectedProject ? (
+          {rightPanel === 'kanban' && selectedProject ? (
+            <KanbanPanel
+              projectPath={selectedProject.path}
+              projectName={selectedProject.name}
+              onRun={(cards: KanbanCard[], { parallel }) => {
+                if (parallel) {
+                  cards.forEach((c, i) => {
+                    const body = c.desc.trim();
+                    const prompt = body ? `${c.title}\n\n${body}` : c.title;
+                    addTab({ prompt, autoSubmit: true, activate: i === 0 });
+                  });
+                  return;
+                }
+                const ws = wsRef.current;
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                const prompt = cards.map((c, i) => {
+                  const body = c.desc.trim();
+                  return `Task ${i + 1}: ${c.title}${body ? `\n${body}` : ''}`;
+                }).join('\n\n');
+                const header = `Please work through the following ${cards.length} task${cards.length === 1 ? '' : 's'} in order. After finishing each, briefly summarise what you did before moving on.\n\n`;
+                ws.send(JSON.stringify({ type: 'input', data: header + prompt + '\r' }));
+              }}
+            />
+          ) : rightPanel === 'kanban' ? (
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 24, textAlign: 'center',
+              fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6,
+            }}>
+              Select a project to open its Kanban board.
+            </div>
+          ) : rightPanel === 'claude' && selectedProject ? (
             <ClaudeMdPanel
               claudeMd={claudeMd}
               claudeMdLoading={claudeMdLoading}
