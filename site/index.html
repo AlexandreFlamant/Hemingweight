@@ -505,6 +505,47 @@
       padding: 48px 24px 24px;
     }
 
+    details.trouble-collapse {
+      border-top: 1px solid rgba(228, 228, 239, 0.08);
+      padding-top: 24px;
+    }
+    details.trouble-collapse > summary {
+      cursor: pointer;
+      list-style: none;
+      display: block;
+      padding: 4px 0;
+    }
+    details.trouble-collapse > summary::-webkit-details-marker { display: none; }
+    details.trouble-collapse > summary .trouble-sum-label {
+      display: block;
+      text-transform: uppercase;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #e07a4b;
+      margin-bottom: 8px;
+    }
+    details.trouble-collapse > summary .trouble-sum-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #e4e4ef;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+    details.trouble-collapse > summary .trouble-chevron {
+      font-size: 0.7rem;
+      color: #a1a1aa;
+      transition: transform 0.2s;
+    }
+    details.trouble-collapse[open] > summary .trouble-chevron {
+      transform: rotate(180deg);
+    }
+    details.trouble-collapse > .trouble-content {
+      padding-top: 14px;
+    }
+
     details.trouble-item {
       border-top: 1px solid rgba(228, 228, 239, 0.08);
       padding: 16px 0;
@@ -569,6 +610,192 @@
     footer a { color: #a1a1aa; }
     footer a:hover { color: #e4e4ef; opacity: 1; }
 
+    /* ---- PREVIEW (video placeholder over screenshot) ---- */
+    .preview {
+      max-width: 960px;
+      padding: 8px 24px 24px;
+    }
+    .preview-frame {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(228, 228, 239, 0.1);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    .preview-frame img { width: 100%; display: block; }
+    .preview-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.45);
+    }
+    .preview-play {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      opacity: 0.85;
+    }
+    .preview-play svg { width: 44px; height: 44px; }
+
+    /* ---- FEATURES (4 cards) ---- */
+    .features { padding: 56px 24px 24px; max-width: 960px; }
+    .features h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .features p.intro {
+      color: #a1a1aa;
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .feature-card {
+      border-radius: 14px;
+      padding: 22px 22px 20px;
+      background: rgba(228, 228, 239, 0.04);
+      border: 1px solid rgba(228, 228, 239, 0.1);
+    }
+    .feature-card.accent {
+      background: linear-gradient(165deg, #e07a4b 0%, #c45a2d 100%);
+      border-color: rgba(224, 122, 75, 0.4);
+    }
+    .feature-card .feat-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 8px;
+    }
+    .feature-card h4 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      margin: 0 0 10px;
+      color: #e4e4ef;
+    }
+    .feature-card.accent h4 { color: #fff; }
+    .feature-card p {
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #a1a1aa;
+      margin: 0;
+    }
+    .feature-card.accent p { color: rgba(255, 255, 255, 0.92); }
+    @media (max-width: 640px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ---- WORKS WITH (tags) ---- */
+    .works-with { padding: 48px 24px 24px; max-width: 960px; }
+    .works-with h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .works-with p.intro {
+      color: #a1a1aa;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    .works-with h3 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #e07a4b;
+      margin: 22px 0 14px;
+    }
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(228, 228, 239, 0.05);
+      border: 1px solid rgba(228, 228, 239, 0.1);
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 0.84rem;
+      font-weight: 500;
+      color: #d4d4d8;
+      transition: border-color 0.2s;
+    }
+    .tag:hover { border-color: rgba(224, 122, 75, 0.35); }
+    .tag svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ---- FAQ ---- */
+    .faq { padding: 48px 24px 24px; }
+    .faq h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .faq p.intro {
+      color: #a1a1aa;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    .faq-list { display: flex; flex-direction: column; gap: 6px; }
+    details.faq-item {
+      border: 1px solid rgba(228, 228, 239, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    details.faq-item summary {
+      cursor: pointer;
+      background: rgba(228, 228, 239, 0.03);
+      padding: 14px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #e4e4ef;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    details.faq-item summary::-webkit-details-marker { display: none; }
+    details.faq-item summary::after {
+      content: '\25BC';
+      font-size: 0.65rem;
+      color: #a1a1aa;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    details.faq-item[open] summary::after { transform: rotate(180deg); }
+    details.faq-item .faq-body {
+      padding: 4px 18px 16px;
+      color: #a1a1aa;
+      font-size: 0.92rem;
+      line-height: 1.65;
+    }
+    details.faq-item .faq-body code {
+      font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+      font-size: 0.82em;
+      background: rgba(228, 228, 239, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #e4e4ef;
+    }
+
     /* ---- UX TOGGLES ---- */
     .hidden { display: none !important; }
   </style>
@@ -582,8 +809,9 @@
         <span class="exp-badge">Experimental</span>
       </a>
       <ul>
+        <li><a href="#features">Features</a></li>
         <li><a href="#setup">Setup</a></li>
-        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#faq">FAQ</a></li>
         <li><a href="/chrome-plugin/">Chrome extension</a></li>
         <li>
           <a href="https://github.com/AlexandreFlamant/hemingweight" class="github-link" target="_blank" rel="noopener">
@@ -656,6 +884,79 @@
           </div>
         </div>
         <div class="model-strip-note">Use your own account with any provider. You pay them directly, no markup from us.</div>
+      </div>
+    </section>
+
+    <section class="preview">
+      <div class="preview-frame">
+        <img src="screenshot.png" alt="Hemingweight in action - live preview alongside the agent">
+        <div class="preview-overlay">
+          <div class="preview-play">
+            <svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><circle cx="20" cy="20" r="19" stroke="white" stroke-width="2"/><path d="M16 13l12 7-12 7V13z" fill="white"/></svg>
+            Video walkthrough &mdash; coming soon
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="section-label">How it works</div>
+      <h2>From idea to running site</h2>
+      <p class="intro">Four pieces, one loop. You describe, the agent builds, the preview updates, errors fix themselves.</p>
+      <div class="features-grid">
+
+        <div class="feature-card">
+          <div class="feat-label">Natural language</div>
+          <h4>Describe it. Build it.</h4>
+          <p>Type what you want in plain English. The agent writes production-ready code, iterates on it, and stays out of your way.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feat-label">Live preview</div>
+          <h4>See every change in real time.</h4>
+          <p>Your site renders as it's built. Components appear in the preview pane the moment they're written. No refresh, no waiting.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feat-label">Integrations</div>
+          <h4>Connect to everything. Instantly.</h4>
+          <p>GitHub, Supabase, Vercel, Netlify &mdash; wire up services in one click. No config files, no environment juggling.</p>
+        </div>
+
+        <div class="feature-card accent">
+          <div class="feat-label">Self-healing</div>
+          <h4>Bugs fix themselves.</h4>
+          <p>Hemingweight watches your browser console and dev-server logs. When an error appears, the agent diagnoses it and pushes a fix.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="works-with" id="works-with">
+      <div class="section-label">Batteries included</div>
+      <h2>Works with what you already use</h2>
+      <p class="intro">Hemingweight comes preloaded with the modern web stack and the services you'd reach for anyway.</p>
+
+      <h3>1-click integrations</h3>
+      <div class="tag-row">
+        <span class="tag"><svg viewBox="0 0 16 16" fill="#e4e4ef" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</span>
+        <span class="tag"><svg viewBox="0 0 109 113" fill="none" aria-hidden="true"><path d="M63.7076 110.284C60.8481 113.885 55.0502 111.912 54.9813 107.314L53.9738 40.0627L99.1935 40.0627C107.384 40.0627 111.952 49.5228 106.859 55.9374L63.7076 110.284Z" fill="#3ECF8E"/><path d="M45.317 2.07103C48.1765 -1.53037 53.9745 0.442937 54.0434 5.041L54.4849 72.2922H9.83113C1.64038 72.2922 -2.92775 62.8321 2.1655 56.4175L45.317 2.07103Z" fill="#3ECF8E"/></svg>Supabase</span>
+        <span class="tag"><svg viewBox="0 0 76 65" fill="#e4e4ef" aria-hidden="true"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg>Vercel</span>
+        <span class="tag"><svg viewBox="0 0 256 256" fill="none" aria-hidden="true"><path d="M128 1C57.308 1 0 57.308 0 128s57.308 127 128 127c70.688 0 128-56.308 128-127S198.688 1 128 1z" fill="#05BDBA"/><path d="M207.3 135.2H175v-13.6h32.3c3.6 0 6.5-3 6.5-6.6 0-3.6-2.9-6.5-6.5-6.5H175V95.2h32.3c11.2 0 20.3 9.1 20.3 20.2 0 11.1-9.1 19.8-20.3 19.8zm-84.9 24.7l-9.7-9.7 22.8-22.8-22.8-22.7 9.7-9.7 32.5 32.4-32.5 32.5z" fill="#014847"/></svg>Netlify</span>
+        <span class="tag"><svg viewBox="0 0 128 128" aria-hidden="true"><path d="M64.1 106.7a3 3 0 01-1.8-.6L42 91.6a3 3 0 011.8-5.4h6.8V64.5H28.8v21.7h5.3a3 3 0 011.8 5.4L15.7 106a3 3 0 01-1.8.6 3 3 0 01-1.8-.6L.6 95.2a3 3 0 011.7-5.4H8V42.2H2.3a3 3 0 01-1.7-5.4l11.5-10.9a3 3 0 013.6 0l20.2 14.5a3 3 0 01-1.8 5.4h-5.3v21.7h21.8V46.4h-6.8a3 3 0 01-1.8-5.4l20.2-19.2a3 3 0 013.6 0l20.3 19.2a3 3 0 01-1.8 5.4h-6.8v21.1h21.8V46.4h-5.3a3 3 0 01-1.8-5.4l20.2-14.5a3 3 0 013.6 0l11.5 10.9a3 3 0 01-1.8 5.4H120v47.5h5.7a3 3 0 011.8 5.4l-11.6 10.8a3 3 0 01-1.8.6 3 3 0 01-1.8-.6l-20.2-14.5a3 3 0 011.7-5.4h5.3V64.5H77.3v21.7h6.8a3 3 0 011.8 5.4l-20.2 14.5a3 3 0 01-1.6.6z" fill="#F38020"/></svg>Cloudflare</span>
+        <span class="tag"><svg viewBox="0 0 25.6 25.6" aria-hidden="true"><path d="M25.6 12.8a12.8 12.8 0 01-25.6 0 12.8 12.8 0 0125.6 0" fill="#336791"/></svg>PostgreSQL</span>
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#e4e4ef" aria-hidden="true"><path d="M12 0L1.608 6v12L12 24l10.392-6V6L12 0z"/></svg>Node.js</span>
+      </div>
+
+      <h3>Preloaded frameworks &amp; tools</h3>
+      <div class="tag-row">
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#646cff" aria-hidden="true"><path d="M12 2L2 7l10 13L22 7 12 2z"/></svg>Vite</span>
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#61dafb" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><ellipse cx="12" cy="12" rx="10" ry="4" stroke="#61dafb" stroke-width="1" fill="none"/><ellipse cx="12" cy="12" rx="10" ry="4" stroke="#61dafb" stroke-width="1" fill="none" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" stroke="#61dafb" stroke-width="1" fill="none" transform="rotate(120 12 12)"/></svg>React</span>
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#e4e4ef" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="none" stroke="#e4e4ef" stroke-width="1"/><path d="M7 7v10M17 17V7l-7 10"/></svg>Next.js</span>
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#3178c6" aria-hidden="true"><rect width="24" height="24" rx="3"/><path d="M9.5 11h6v1.5h-2.25V18H11.75v-5.5H9.5V11z" fill="#fff"/></svg>TypeScript</span>
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#06b6d4" aria-hidden="true"><path d="M12.001 4.8c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624C13.666 10.618 15.027 12 18.001 12c3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C16.337 6.182 14.976 4.8 12.001 4.8zm-6 7.2c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624 1.177 1.194 2.538 2.576 5.512 2.576 3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C10.337 13.382 8.976 12 6.001 12z"/></svg>Tailwind CSS</span>
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#e4e4ef" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.9.58.11.79-.25.79-.56 0-.28-.01-1.01-.02-1.99-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.25 3.35.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.3-.51-1.47.11-3.06 0 0 .96-.31 3.15 1.18a10.94 10.94 0 0 1 5.74 0c2.19-1.49 3.14-1.18 3.14-1.18.63 1.59.24 2.76.12 3.06.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.26 5.68.41.35.78 1.05.78 2.12 0 1.53-.01 2.76-.01 3.14 0 .31.2.67.8.55C20.22 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>shadcn/ui</span>
+        <span class="tag"><svg viewBox="0 0 24 24" fill="#e4e4ef" aria-hidden="true"><path d="M12 2L2 7l10 13L22 7 12 2z" stroke="#e4e4ef" stroke-width="1" fill="none"/></svg>Prisma</span>
       </div>
     </section>
 
@@ -752,100 +1053,160 @@
       </div>
     </section>
 
-    <section class="trouble" id="troubleshooting">
-      <div class="section-label">If something goes wrong</div>
-      <h2>Troubleshooting</h2>
-      <p class="intro">Common snags and how to get past them.</p>
-
-      <details class="trouble-item" id="pna-help">
-        <summary>My browser blocked the connection to localhost</summary>
-        <div class="body">
-          <p>The first time this page tries to reach your local machine, Chromium-based browsers show an "access local network" prompt. If you clicked <strong>Block</strong>, the choice is remembered and the browser will not ask again. You need to reset the permission for this site.</p>
-          <p><strong>Easiest fix (works on Chrome, Brave, Arc, Edge):</strong></p>
-          <ol>
-            <li>Paste this URL into your browser's address bar and press Enter:</li>
-          </ol>
-          <div class="code-block">
-            <button class="copy-btn" data-copy="pna">Copy</button>
-            <span id="pna-cmd">chrome://settings/content/siteDetails?site=https%3A%2F%2Fhemingweight.vercel.app</span>
-          </div>
-          <ol start="2">
-            <li>Click the <strong>Reset permissions</strong> button at the top of the page that opens</li>
-            <li>Come back here and reload. When the prompt reappears, click <strong>Allow</strong>.</li>
-          </ol>
-          <p><strong>Manual alternative:</strong> click the tune icon on the left of the address bar, open Site settings, find <strong>Local network</strong> (Brave) or <strong>Private network access</strong> (Chrome), and set it to Allow. Reset is faster.</p>
-          <p>Safari and Firefox don't enforce this yet, so this step doesn't apply there.</p>
-        </div>
-      </details>
-
-      <details class="trouble-item">
-        <summary>The install command failed</summary>
-        <div class="body">
-          <p>The first red line in the Terminal output usually names the culprit. The most common ones:</p>
-          <ol>
-            <li><strong>Missing Xcode Command Line Tools.</strong> Run <span class="inline-code">xcode-select --install</span>, wait for it to finish, then re-run the install command.</li>
-            <li><strong>Homebrew not installed.</strong> The installer puts it in place for you, but if that step fails, install Homebrew manually from <a href="https://brew.sh" target="_blank" rel="noopener">brew.sh</a> and re-run.</li>
-            <li><strong>Permission denied.</strong> Make sure you're pasting the command into Terminal as yourself, not under sudo.</li>
-          </ol>
-          <p>Still stuck? <a href="https://github.com/AlexandreFlamant/hemingweight/issues/new" target="_blank" rel="noopener">Open a GitHub issue</a> with the last 20 lines of your Terminal output.</p>
-        </div>
-      </details>
-
-      <details class="trouble-item">
-        <summary>Status stays red even after install finished</summary>
-        <div class="body">
-          <p>The server may not have started. Open Terminal and run:</p>
-          <div class="code-block">
-            <button class="copy-btn" data-copy="restart">Copy</button>
-            <span id="restart-cmd">launchctl kickstart -k gui/$(id -u)/com.hemingweight.webserver</span>
-          </div>
-          <p>Then refresh this page. If that doesn't help, check the server log for errors:</p>
-          <div class="code-block">
-            <button class="copy-btn" data-copy="log">Copy</button>
-            <span id="log-cmd">tail -n 50 ~/.hemingweight/webserver.err.log</span>
-          </div>
-        </div>
-      </details>
-
-      <details class="trouble-item" id="update-help">
-        <summary>Update Hemingweight to the latest version</summary>
-        <div class="body">
-          <p>If you're on a version older than 1.6.0 you won't see the in-app Update button yet. Run this one-liner once and you'll be on the latest, with auto-update working from then on:</p>
-          <div class="code-block">
-            <button class="copy-btn" data-copy="update">Copy</button>
-            <span id="update-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash</span>
-          </div>
-          <p>Same command as the first install. If Hemingweight is already in <span class="inline-code">~/Developer/hemingweight</span>, the installer detects it and runs <span class="inline-code">git pull</span> instead of a fresh clone. No data is touched.</p>
-          <p>Prefer to do it by hand?</p>
-          <div class="code-block">
-            <button class="copy-btn" data-copy="update-manual">Copy</button>
-            <span id="update-manual-cmd">bash ~/Developer/hemingweight/update.sh</span>
-          </div>
-          <p>Once you're on 1.6.0 or later, the app shows a small orange <strong>Update</strong> chip in its top toolbar whenever a new version lands. Click it, wait a few seconds, done.</p>
-        </div>
-      </details>
-
-      <details class="trouble-item">
-        <summary>I want to uninstall Hemingweight</summary>
-        <div class="body">
-          <p>Run these three commands in Terminal:</p>
-          <div class="code-block">
-            <button class="copy-btn" data-copy="uninstall">Copy</button>
-            <span id="uninstall-cmd">bash ~/Developer/hemingweight/uninstall-launch-agent.sh
-mkcert -uninstall
-rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
-          </div>
-          <p>Line 1 stops the auto-starting server. Line 2 removes the local certificate authority from your keychain. Line 3 deletes the code and config. Your <span class="inline-code">~/Developer</span> projects stay where they are.</p>
-        </div>
-      </details>
-    </section>
-
     <section class="how">
       <div class="section-label">Under the hood</div>
       <h2>How it works</h2>
       <p class="body">Hemingweight is a small Node.js server that runs on your Mac. It serves a React-based UI and spawns whichever AI coding CLI you've configured (Claude Code, Mistral's <span class="inline-code">vibe</span>, OpenAI's <span class="inline-code">codex</span>) in a real terminal via a Python PTY bridge. When you describe what you want built, the agent reads and writes files in your projects folder, runs your dev server, and hands you a live preview.</p>
       <p class="body">This page is a thin entry point. It detects the local server over HTTPS on port 3457 (or HTTP on 3456 for legacy setups), and hands you off. Nothing about your session, your code, or your prompts ever touches our servers. The AI CLI talks to its provider (Anthropic, Mistral, OpenAI) using your own key or subscription, the same way the CLI does on the command line.</p>
       <p class="body">All the code is on <a href="https://github.com/AlexandreFlamant/hemingweight" target="_blank" rel="noopener">GitHub</a>. Issues, pull requests, and model integrations welcome.</p>
+    </section>
+
+    <section class="faq" id="faq">
+      <div class="section-label">FAQ</div>
+      <h2>Frequently asked</h2>
+      <p class="intro">The questions people send us most. Missing one? <a href="https://github.com/AlexandreFlamant/hemingweight/discussions" target="_blank" rel="noopener">Ask on GitHub</a>.</p>
+      <div class="faq-list">
+
+        <details class="faq-item">
+          <summary>What is Hemingweight?</summary>
+          <div class="faq-body">A local, open-source IDE powered by an AI coding agent. You describe what you want in plain English; it writes the code, runs the dev server, and shows you the result live in a side-by-side preview.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Do I need to know how to code?</summary>
+          <div class="faq-body">No. If you can describe what you want, the agent handles the code. If you do know how to code, you can read every file, edit anything by hand, and push to GitHub like any other project.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How much does it cost?</summary>
+          <div class="faq-body">Hemingweight itself is free and open source (MIT). The cost is whatever your AI provider charges. Claude Pro/Max ($20-$200/mo), Mistral / OpenAI / Gemini API keys (pay-as-you-go) &mdash; you pay them directly, no markup from us.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What can I build with it?</summary>
+          <div class="faq-body">Landing pages, web apps, dashboards, blogs, internal tools, prototypes &mdash; anything that runs in a browser. Vite, React, Next.js, TypeScript and Tailwind are preloaded, so you can ship a real production stack on day one.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Where are my files saved?</summary>
+          <div class="faq-body">In <code>~/Developer</code> on your own machine, as plain files inside a git repo. Nothing is uploaded. Your code only leaves your laptop if <em>you</em> push to GitHub, or when the AI CLI talks to its provider using your own key.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Which AI models work?</summary>
+          <div class="faq-body">Claude (via Claude Code), Mistral (via the <code>vibe</code> CLI), OpenAI (via <code>codex</code>), and Gemini (via the <code>gemini</code> CLI). You bring your own account or API key. Switch model per-project, or even mid-conversation.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is it Mac only?</summary>
+          <div class="faq-body">For now, yes. The installer is tuned for macOS (Homebrew, launchd, Keychain trust for the local HTTPS cert). Windows and Linux support is on the roadmap &mdash; PRs welcome.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Why does my browser ask about "local network access"?</summary>
+          <div class="faq-body">Hemingweight runs as a tiny server on your laptop at <code>localhost:3457</code>. Chromium-based browsers now ask permission before any website (including this one) is allowed to talk to it. Click <strong>Allow</strong> on the first prompt. If you missed it, see the <a href="#pna-help">Troubleshooting</a> section.</div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How is this different from Cursor, v0, or Bolt?</summary>
+          <div class="faq-body">It's local-first and bring-your-own-model. Your code lives on your disk, your provider talks to your account, and there's no Hemingweight cloud in the middle. The whole thing is MIT-licensed, so you can fork it, extend it, or run it air-gapped.</div>
+        </details>
+
+      </div>
+    </section>
+
+    <section class="trouble" id="troubleshooting">
+      <details class="trouble-collapse">
+        <summary>
+          <span class="trouble-sum-label">If something goes wrong</span>
+          <span class="trouble-sum-title">Troubleshooting <span class="trouble-chevron">&#9660;</span></span>
+        </summary>
+        <div class="trouble-content">
+          <p class="intro">Common snags and how to get past them.</p>
+
+          <details class="trouble-item" id="pna-help">
+            <summary>My browser blocked the connection to localhost</summary>
+            <div class="body">
+              <p>The first time this page tries to reach your local machine, Chromium-based browsers show an "access local network" prompt. If you clicked <strong>Block</strong>, the choice is remembered and the browser will not ask again. You need to reset the permission for this site.</p>
+              <p><strong>Easiest fix (works on Chrome, Brave, Arc, Edge):</strong></p>
+              <ol>
+                <li>Paste this URL into your browser's address bar and press Enter:</li>
+              </ol>
+              <div class="code-block">
+                <button class="copy-btn" data-copy="pna">Copy</button>
+                <span id="pna-cmd">chrome://settings/content/siteDetails?site=https%3A%2F%2Fhemingweight.vercel.app</span>
+              </div>
+              <ol start="2">
+                <li>Click the <strong>Reset permissions</strong> button at the top of the page that opens</li>
+                <li>Come back here and reload. When the prompt reappears, click <strong>Allow</strong>.</li>
+              </ol>
+              <p><strong>Manual alternative:</strong> click the tune icon on the left of the address bar, open Site settings, find <strong>Local network</strong> (Brave) or <strong>Private network access</strong> (Chrome), and set it to Allow. Reset is faster.</p>
+              <p>Safari and Firefox don't enforce this yet, so this step doesn't apply there.</p>
+            </div>
+          </details>
+
+          <details class="trouble-item">
+            <summary>The install command failed</summary>
+            <div class="body">
+              <p>The first red line in the Terminal output usually names the culprit. The most common ones:</p>
+              <ol>
+                <li><strong>Missing Xcode Command Line Tools.</strong> Run <span class="inline-code">xcode-select --install</span>, wait for it to finish, then re-run the install command.</li>
+                <li><strong>Homebrew not installed.</strong> The installer puts it in place for you, but if that step fails, install Homebrew manually from <a href="https://brew.sh" target="_blank" rel="noopener">brew.sh</a> and re-run.</li>
+                <li><strong>Permission denied.</strong> Make sure you're pasting the command into Terminal as yourself, not under sudo.</li>
+              </ol>
+              <p>Still stuck? <a href="https://github.com/AlexandreFlamant/hemingweight/issues/new" target="_blank" rel="noopener">Open a GitHub issue</a> with the last 20 lines of your Terminal output.</p>
+            </div>
+          </details>
+
+          <details class="trouble-item">
+            <summary>Status stays red even after install finished</summary>
+            <div class="body">
+              <p>The server may not have started. Open Terminal and run:</p>
+              <div class="code-block">
+                <button class="copy-btn" data-copy="restart">Copy</button>
+                <span id="restart-cmd">launchctl kickstart -k gui/$(id -u)/com.hemingweight.webserver</span>
+              </div>
+              <p>Then refresh this page. If that doesn't help, check the server log for errors:</p>
+              <div class="code-block">
+                <button class="copy-btn" data-copy="log">Copy</button>
+                <span id="log-cmd">tail -n 50 ~/.hemingweight/webserver.err.log</span>
+              </div>
+            </div>
+          </details>
+
+          <details class="trouble-item" id="update-help">
+            <summary>Update Hemingweight to the latest version</summary>
+            <div class="body">
+              <p>If you're on a version older than 1.6.0 you won't see the in-app Update button yet. Run this one-liner once and you'll be on the latest, with auto-update working from then on:</p>
+              <div class="code-block">
+                <button class="copy-btn" data-copy="update">Copy</button>
+                <span id="update-cmd">curl -fsSL https://raw.githubusercontent.com/AlexandreFlamant/hemingweight/main/install-remote.sh | bash</span>
+              </div>
+              <p>Same command as the first install. If Hemingweight is already in <span class="inline-code">~/Developer/hemingweight</span>, the installer detects it and runs <span class="inline-code">git pull</span> instead of a fresh clone. No data is touched.</p>
+              <p>Prefer to do it by hand?</p>
+              <div class="code-block">
+                <button class="copy-btn" data-copy="update-manual">Copy</button>
+                <span id="update-manual-cmd">bash ~/Developer/hemingweight/update.sh</span>
+              </div>
+              <p>Once you're on 1.6.0 or later, the app shows a small orange <strong>Update</strong> chip in its top toolbar whenever a new version lands. Click it, wait a few seconds, done.</p>
+            </div>
+          </details>
+
+          <details class="trouble-item">
+            <summary>I want to uninstall Hemingweight</summary>
+            <div class="body">
+              <p>Run these three commands in Terminal:</p>
+              <div class="code-block">
+                <button class="copy-btn" data-copy="uninstall">Copy</button>
+                <span id="uninstall-cmd">bash ~/Developer/hemingweight/uninstall-launch-agent.sh
+mkcert -uninstall
+rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
+              </div>
+              <p>Line 1 stops the auto-starting server. Line 2 removes the local certificate authority from your keychain. Line 3 deletes the code and config. Your <span class="inline-code">~/Developer</span> projects stay where they are.</p>
+            </div>
+          </details>
+        </div>
+      </details>
     </section>
 
   </main>
@@ -1008,10 +1369,17 @@ rm -rf ~/Developer/hemingweight ~/.hemingweight</span>
     // already current (which does not fire hashchange).
     function openDetailsById(id) {
       const el = document.getElementById(id);
-      if (el && el.tagName === 'DETAILS') {
-        el.open = true;
-        requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      if (!el) return;
+      // Open the target itself if it is a <details>, then walk up and open
+      // any ancestor <details> so deep links into the collapsed
+      // Troubleshooting section reveal their parent automatically.
+      if (el.tagName === 'DETAILS') el.open = true;
+      let parent = el.parentElement;
+      while (parent) {
+        if (parent.tagName === 'DETAILS') parent.open = true;
+        parent = parent.parentElement;
       }
+      requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
     window.addEventListener('hashchange', () => {
       if (window.location.hash) openDetailsById(window.location.hash.slice(1));
